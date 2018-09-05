@@ -1,7 +1,7 @@
 SYSTEM = x86-64_sles10_4.1
 LIBFORMAT = static_pic
 
-GUROBI_DIR = /home/wpette/opt/gurobi752/linux64
+GUROBI_DIR = /users/grad/wpette/opt/gurobi752/linux64
 CLIB     = -L$(GUROBI_DIR)/lib/ -lgurobi75
 INC      = $(GUROBI_DIR)/include/
 CPPLIB   = -L$(GUROBI_DIR)/lib/ -lgurobi_c++ $(CLIB)

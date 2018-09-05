@@ -15,8 +15,6 @@ int main(int argc, char **argv){
 	// functions
 	allo.load(path,filein);
 	allo.printProb();
-	allo.reduction();
-	allo.printProb();
 
 	manlove(allo);
 	
@@ -30,10 +28,8 @@ int manlove(Allocation& allo){
 	double initTimeModelCPU = getCPUTime();
 	GRBEnv env = GRBEnv();
 
-	double initTimeModelCPUPP = getCPUTime();
-	allo.reduction();
 	allo.printProb();
-	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPUPP;
+	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPU;
 
 	// Model
 	try{
@@ -78,6 +74,7 @@ int manlove(Allocation& allo){
 					allocationOfChildI[i] += isChildIAllocatedToFamilyJ[i][j][k];
 					allocationOfFamilyJ[idxFam] += isChildIAllocatedToFamilyJ[i][j][k];
 					objFun += isChildIAllocatedToFamilyJ[i][j][k] * 1;
+			//		objFun += isChildIAllocatedToFamilyJ[i][j][k] * allo.grades[idxFam][i]; 
 					for (int l= idxRank; l < allo.families[idxFam].preferences.size(); l++){
 						fillingOfFamilyJUpToRankK[idxFam][l] += isChildIAllocatedToFamilyJ[i][j][k];
 					}
@@ -102,14 +99,12 @@ int manlove(Allocation& allo){
 		for (int i = 0; i < allo.nbChildren; i++){
 			GRBLinExpr leftside = 0;
 			for (int j = 0; j<allo.children[i].nbPref; j++){
-				GRBLinExpr rightside = 0;
-				for(int k=0; k<allo.children[i].preferences[j].size();k++) {
-					leftside += isChildIAllocatedToFamilyJ[i][j][k];
+				for(int k=0; k<allo.children[i].preferences[j].size();k++) leftside += isChildIAllocatedToFamilyJ[i][j][k];
+				for(int k=0; k<allo.children[i].preferences[j].size();k++){
 					int idxFam = allo.children[i].preferences[j][k];
-					int idxRank = allo.children[i].ranks[j][k];		
-					rightside += fillingOfFamilyJUpToRankK[idxFam][idxRank];
+					int idxRank = allo.children[i].ranks[j][k];
+					model.addConstr(1 - leftside <= fillingOfFamilyJUpToRankK[idxFam][idxRank]);
 				}
-				model.addConstr(allo.children[i].preferences[j].size() * (1 - leftside) <= rightside);
 			}	
 		} 
 			

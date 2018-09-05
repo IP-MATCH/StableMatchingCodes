@@ -122,7 +122,7 @@ int manlove(Allocation& allo){
 		} 
 			
 		// Setting of Gurobi
-		model.getEnv().set(GRB_DoubleParam_TimeLimit, 1800 - getCPUTime() - initTimeModelCPU);
+		model.getEnv().set(GRB_DoubleParam_TimeLimit, 3600 - (getCPUTime() - initTimeModelCPU));
 		model.getEnv().set(GRB_IntParam_Threads, 1);
 		model.getEnv().set(GRB_DoubleParam_MIPGap, 0);
 		model.optimize();

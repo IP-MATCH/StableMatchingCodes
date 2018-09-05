@@ -13,10 +13,10 @@ DEBUG = -pg -g -Wall -ansi -pedantic -DIL_STD
 OBJECTS = main.o Allocation.o time.o
  
 exec : $(OBJECTS) 
-	$(CC) $(CFLAGS) -o MANLOVE_REDUCTION $(OBJECTS) $(GUROBI_OPTS)
+	$(CC) $(CFLAGS) -o NOBIN_1STA_NOMERGED_NOPRE $(OBJECTS) $(GUROBI_OPTS)
  
 .cpp.o : 
 	$(CC) $(CFLAGS) $(GUROBI_OPTS) -c $< -o $@ 
  
 clean : 
-	rm -f $(OBJECTS) MANLOVE_REDUCTION
+	rm -f $(OBJECTS) NOBIN_1STA_NOMERGED_NOPRE
