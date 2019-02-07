@@ -62,6 +62,7 @@
 		string name;
 		int nbChildren;
 		int nbFamilies;
+		int total_reduced;
 		vector<vector<float> > grades;
 
 		vector<Child> children;

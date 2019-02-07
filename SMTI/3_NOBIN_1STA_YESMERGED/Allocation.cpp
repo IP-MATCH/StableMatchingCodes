@@ -1,4 +1,5 @@
 #include "Allocation.h" 
+#include "AgentIterator.h"
 
 /*	*************************************************************************************
 	***********************************  DOCTOR *****************************************
@@ -6,24 +7,6 @@
 
 void Child::print(){
 	cout << "Child " << id << "\t Preferences (" << nbPref << " groups, " << nbTotPref << " in total)\t";
-	for(int i=0; i<nbPref; i++){
-		cout << "(";
-			for(int j=0; j<preferences[i].size(); j++){
-				if(j > 0) cout << " ";
-				cout << preferences[i][j];
-				cout << "[" << ranks[i][j] << "_" << positions[i][j] <<  "]";
-			}
-			cout << ") "; 
-	}
-	cout << endl;
-}
-
-/*	*************************************************************************************
-	*********************************** HOSPITAL ****************************************
-	************************************************************************************* */
-
-void Family::print(){
-	cout << "Family " << id << "\t Preferences (" << nbPref << " groups, " << nbTotPref << " in total)\t";
 	for(int i=0; i<nbPref; i++){
 		cout << "(";
 			for(int j=0; j<preferences[i].size(); j++){
@@ -237,312 +220,83 @@ void Allocation::printProb(){
 	}
 }
 
-int Allocation::reductionFam1(){
-	
-	// Step 1 -- Create map
-	
-	int count = 0;
-	map<vector<int>, vector<int> >::iterator it;
-	map<vector<int>, vector<int> > mapFirstChoice;
-	for(int j=0; j<nbFamilies;j++){
-		vector<int> temp(nbChildren,0);
-		if(families[j].nbPref > 0){ 
-			for(int k=0;k<families[j].preferences[0].size();k++){
-				temp[families[j].preferences[0][k]] = 1;
-			}
-			it = mapFirstChoice.find(temp);
-			if(it == mapFirstChoice.end()){
-				pair<vector<int>, vector<int> > add;
-				add.first = temp;
-				add.second.push_back(j);
-				mapFirstChoice.insert(add);
-			}
-			else{
-				(*it).second.push_back(j);
-			}
-		}
-		else count++;
-	}
-
-/*	for(it = mapFirstChoice.begin(); it!= mapFirstChoice.end(); ++it){
-		cout << (*it).second.size() << " x (" << families[(*it).second[0]].preferences[0].size() << ") [";
-		for(int i=0;i<(*it).second.size();i++){
-			cout << (*it).second[i] << " ";
-		}
-		cout << "] == [";
-		for(int i=0;i<(*it).first.size();i++){
-			cout << (*it).first[i] << " ";
-		}
-		cout << "]" << endl;
-	}
-
-	cout << "Count = " << count << endl;*/
-
-	// Step 2 -- See worst rank
-
-	vector<int> worstRank(nbChildren);
-	for(int i=0;i<nbChildren;i++){
-		worstRank[i] = children[i].nbPref - 1;
-	}
-
-	int co = 0;
-	for(it = mapFirstChoice.begin(); it!= mapFirstChoice.end(); ++it){
-		if((*it).second.size() >= families[(*it).second[0]].preferences[0].size() ){
-		//	cout << "Updates from " << co << endl;; co++;
-			for(int i=0; i < families[(*it).second[0]].preferences[0].size();i++){
-				multiset<int> orderedRanks;
-				multiset<int>::iterator it2; 			
-				for(int j=0; j<(*it).second.size();j++){
-					orderedRanks.insert(families[(*it).second[j]].ranks[0][i]);
-				}
-			//	cout << "worstRank of "  << families[(*it).second[0]].preferences[0][i] << " updated from " << worstRank[families[(*it).second[0]].preferences[0][i]];
-				it2 = orderedRanks.begin();
-				advance(it2, families[(*it).second[0]].preferences[0].size() - 1);
-				worstRank[families[(*it).second[0]].preferences[0][i]]=min(worstRank[families[(*it).second[0]].preferences[0][i]], *(it2));
-			//	cout << " to " << worstRank[families[(*it).second[0]].preferences[0][i]] << endl;
-			}
-		}
-	}
-
-	// Step 3 -- Remove families after worst rank from child's preferences
-
+int Allocation::reductionMine(bool children_side, int mode) {
 	int nbTotRem = 0;
+	int number_here = nbChildren;
+	std::vector<Child> * thesep;
+	std::vector<Child> * otherp;
+	if (children_side) {
+		thesep = &children;
+		otherp = &families;
+	} else {
+		thesep = &families;
+		otherp = &children;
+	}
+	std::vector<Child> & these = (*thesep);
+	std::vector<Child> & other = (*otherp);
 
-	for(int i=0; i<nbChildren;i++){
-		for(int k= worstRank[i] + 1; k < children[i].nbPref; k++){
-			nbTotRem += children[i].preferences[k].size();
-			children[i].nbTotPref -= children[i].preferences[k].size();
-			for(int l=0; l<children[i].preferences[k].size();l++){
-				int idxFam = children[i].preferences[k][l];
-				int idxPos = children[i].positions[k][l];
-				int idxRank = children[i].ranks[k][l];
-				for(int m = idxPos+1; m < families[idxFam].preferences[idxRank].size();m++){
-					int idxF2 = children[families[idxFam].preferences[idxRank][m]].positions[families[idxFam].ranks[idxRank][m]][families[idxFam].positions[idxRank][m]]--;
-				}
-				families[idxFam].nbTotPref--;
-				families[idxFam].positions[idxRank].erase(families[idxFam].positions[idxRank].begin() + idxPos);
-				families[idxFam].ranks[idxRank].erase(families[idxFam].ranks[idxRank].begin() + idxPos);
-				families[idxFam].preferences[idxRank].erase(families[idxFam].preferences[idxRank].begin() + idxPos);
-			}
+	for (int i = 0; i < number_here; i++) {
+		set<int> candidates;
+		set<int> positions;
+		unsigned int count = 0;
+		AgentIterator *iter;
+		switch (mode) {
+			default:
+			case 0:
+				iter = new AgentIterator(these[i], candidates, positions, these, other);
+				break;
+			case 1:
+				iter = new SkipBigIterator<5>(these[i], candidates, positions, these, other);
+				break;
+			case 2:
+				iter = new BestIterator(these[i], candidates, positions, these, other);
+				break;
 		}
-		children[i].nbPref = worstRank[i] + 1;
-		children[i].preferences.resize(children[i].nbPref);
-		children[i].ranks.resize(children[i].nbPref);
-		children[i].positions.resize(children[i].nbPref);
-	}
-	
-	polish();
-	return nbTotRem;
-}
-
-int Allocation::reductionChi1(){
-	
-	// Step 1 -- Create map
-	
-	int count = 0;
-	map<vector<int>, vector<int> >::iterator it;
-	map<vector<int>, vector<int> > mapFirstChoice;
-	for(int j=0; j<nbChildren;j++){
-		vector<int> temp(nbFamilies,0);
-		if(children[j].nbPref > 0){ 
-			for(int k=0;k<children[j].preferences[0].size();k++){
-				temp[children[j].preferences[0][k]] = 1;
-			}
-			it = mapFirstChoice.find(temp);
-			if(it == mapFirstChoice.end()){
-				pair<vector<int>, vector<int> > add;
-				add.first = temp;
-				add.second.push_back(j);
-				mapFirstChoice.insert(add);
-			}
-			else{
-				(*it).second.push_back(j);
-			}
-		}
-		else count++;
-	}
-
-/*	for(it = mapFirstChoice.begin(); it!= mapFirstChoice.end(); ++it){
-		cout << (*it).second.size() << " x (" << children[(*it).second[0]].preferences[0].size() << ") [";
-		for(int i=0;i<(*it).second.size();i++){
-			cout << (*it).second[i] << " ";
-		}
-		cout << "] == [";
-		for(int i=0;i<(*it).first.size();i++){
-			cout << (*it).first[i] << " ";
-		}
-		cout << "]" << endl;
-	}
-
-	cout << "Count = " << count << endl;*/
-
-	// Step 2 -- See worst rank
-
-	vector<int> worstRank(nbFamilies);
-	for(int i=0;i<nbFamilies;i++){
-		worstRank[i] = families[i].nbPref - 1;
-	}
-
-	int co = 0;
-	for(it = mapFirstChoice.begin(); it!= mapFirstChoice.end(); ++it){
-		if((*it).second.size() >= children[(*it).second[0]].preferences[0].size() ){
-		//	cout << "Updates from " << co << endl;; co++;
-			for(int i=0; i < children[(*it).second[0]].preferences[0].size();i++){
-				multiset<int> orderedRanks;
-				multiset<int>::iterator it2; 			
-				for(int j=0; j<(*it).second.size();j++){
-					orderedRanks.insert(children[(*it).second[j]].ranks[0][i]);
-				}
-			//	cout << "worstRank of "  << children[(*it).second[0]].preferences[0][i] << " updated from " << worstRank[children[(*it).second[0]].preferences[0][i]];
-				it2 = orderedRanks.begin();
-				advance(it2, children[(*it).second[0]].preferences[0].size() - 1);
-				worstRank[children[(*it).second[0]].preferences[0][i]]=min(worstRank[children[(*it).second[0]].preferences[0][i]], *(it2));
-			//	cout << " to " << worstRank[children[(*it).second[0]].preferences[0][i]] << endl;
-			}
-		}
-	}
-
-	// Step 3 -- Remove families after worst rank from child's preferences
-
-	int nbTotRem = 0;
-
-	for(int i=0; i<nbFamilies;i++){
-		for(int k= worstRank[i] + 1; k < families[i].nbPref; k++){
-			nbTotRem += families[i].preferences[k].size();
-			families[i].nbTotPref -= families[i].preferences[k].size();
-			for(int l=0; l<families[i].preferences[k].size();l++){
-				int idxChi = families[i].preferences[k][l];
-				int idxPos = families[i].positions[k][l];
-				int idxRank = families[i].ranks[k][l];
-				for(int m = idxPos+1; m < children[idxChi].preferences[idxRank].size();m++){
-					int idxF2 = families[children[idxChi].preferences[idxRank][m]].positions[children[idxChi].ranks[idxRank][m]][children[idxChi].positions[idxRank][m]]--;
-				}
-				children[idxChi].nbTotPref--;
-				children[idxChi].positions[idxRank].erase(children[idxChi].positions[idxRank].begin() + idxPos);
-				children[idxChi].ranks[idxRank].erase(children[idxChi].ranks[idxRank].begin() + idxPos);
-				children[idxChi].preferences[idxRank].erase(children[idxChi].preferences[idxRank].begin() + idxPos);
-			}
-		}
-		families[i].nbPref = worstRank[i] + 1;
-		families[i].preferences.resize(families[i].nbPref);
-		families[i].ranks.resize(families[i].nbPref);
-		families[i].positions.resize(families[i].nbPref);
-	}
-	
-	polish();
-	return nbTotRem;
-}
-
-int Allocation::reductionFam2(){
-	
-	int nbTotRem = 0;
-	vector<int> worstRank(nbChildren);
-	for(int i=0;i<nbChildren;i++){
-		worstRank[i] = children[i].nbPref - 1;
-	}
-
-	for(int i=0; i<nbChildren;i++){
-		set<int> allChildren;
-		int count = 0;
-		for(int j=0; j<children[i].nbPref;j++){
-			for(int k=0; k<children[i].preferences[j].size();k++){
-				count++;
-				int idxFam = children[i].preferences[j][k];
-				int idxPos = children[i].positions[j][k];
-				int idxRank = children[i].ranks[j][k];
-				for(int l = 0; l <= idxRank; l++){
-					for(int m=0; m<families[idxFam].preferences[l].size();m++) 
-						allChildren.insert(families[idxFam].preferences[l][m]);
+		for(std::pair<int, int> p: *iter) {
+			int j = p.first;
+			int k = p.second;
+			int idxFam = these[i].preferences[j][k];
+			int idxRank = these[i].ranks[j][k];
+			positions.insert(idxFam);
+			count++;
+			for (int l = 0; l <= idxRank; l++) {
+				for (unsigned int m = 0; m < other[idxFam].preferences[l].size();
+							m++) {
+					candidates.insert(other[idxFam].preferences[l][m]);
 				}
 			}
-			if(count >= allChildren.size()){ 
-				worstRank[i] = j;
-			//	cout << "worst rank of " << i << " is " << j << endl;
+			if (count >= candidates.size()) {
+				for (int k = j + 1; k < these[i].nbPref; k++) {
+					nbTotRem += these[i].preferences[k].size();
+					these[i].nbTotPref -= these[i].preferences[k].size();
+					for (unsigned int l = 0; l < these[i].preferences[k].size(); l++) {
+						int idxFam = these[i].preferences[k][l];
+						int idxPos = these[i].positions[k][l];
+						int idxRank = these[i].ranks[k][l];
+						for (unsigned int m = idxPos + 1;
+									m < other[idxFam].preferences[idxRank].size(); m++) {
+							these[other[idxFam].preferences[idxRank][m]]
+									.positions[other[idxFam].ranks[idxRank][m]]
+														[other[idxFam].positions[idxRank][m]]--;
+						}
+						other[idxFam].nbTotPref--;
+						other[idxFam].positions[idxRank].erase(
+								other[idxFam].positions[idxRank].begin() + idxPos);
+						other[idxFam].ranks[idxRank].erase(
+								other[idxFam].ranks[idxRank].begin() + idxPos);
+						other[idxFam].preferences[idxRank].erase(
+								other[idxFam].preferences[idxRank].begin() + idxPos);
+					}
+				}
+				these[i].nbPref = j + 1;
+				these[i].preferences.resize(these[i].nbPref);
+				these[i].ranks.resize(these[i].nbPref);
+				these[i].positions.resize(these[i].nbPref);
 				break;
 			}
 		}
+		delete iter;
 	}
-
-	for(int i=0; i<nbChildren;i++){
-		for(int k= worstRank[i] + 1; k < children[i].nbPref; k++){
-			nbTotRem += children[i].preferences[k].size();
-			children[i].nbTotPref -= children[i].preferences[k].size();
-			for(int l=0; l<children[i].preferences[k].size();l++){
-				int idxFam = children[i].preferences[k][l];
-				int idxPos = children[i].positions[k][l];
-				int idxRank = children[i].ranks[k][l];
-				for(int m = idxPos+1; m < families[idxFam].preferences[idxRank].size();m++){
-					int idxF2 = children[families[idxFam].preferences[idxRank][m]].positions[families[idxFam].ranks[idxRank][m]][families[idxFam].positions[idxRank][m]]--;
-				}
-				families[idxFam].nbTotPref--;
-				families[idxFam].positions[idxRank].erase(families[idxFam].positions[idxRank].begin() + idxPos);
-				families[idxFam].ranks[idxRank].erase(families[idxFam].ranks[idxRank].begin() + idxPos);
-				families[idxFam].preferences[idxRank].erase(families[idxFam].preferences[idxRank].begin() + idxPos);
-			}
-		}
-		children[i].nbPref = worstRank[i] + 1;
-		children[i].preferences.resize(children[i].nbPref);
-		children[i].ranks.resize(children[i].nbPref);
-		children[i].positions.resize(children[i].nbPref);
-	}
-	
-	polish();
-	return nbTotRem;
-}
-
-int Allocation::reductionChi2(){
-	
-	int nbTotRem = 0;
-	vector<int> worstRank(nbFamilies);
-	for(int i=0;i<nbFamilies;i++){
-		worstRank[i] = families[i].nbPref - 1;
-	}
-
-	for(int i=0; i<nbFamilies;i++){
-		set<int> allFamilies;
-		int count = 0;
-		for(int j=0; j<families[i].nbPref;j++){
-			for(int k=0; k<families[i].preferences[j].size();k++){
-				count++;
-				int idxChi = families[i].preferences[j][k];
-				int idxPos = families[i].positions[j][k];
-				int idxRank = families[i].ranks[j][k];
-				for(int l = 0; l <= idxRank; l++){
-					for(int m=0; m<children[idxChi].preferences[l].size();m++) 
-						allFamilies.insert(children[idxChi].preferences[l][m]);
-				}
-			}
-			if(count >= allFamilies.size()){ 
-				worstRank[i] = j;
-			//	cout << "worst rank of " << i << " is " << j << endl;
-				break;
-			}
-		}
-	}
-
-	for(int i=0; i<nbFamilies;i++){
-		for(int k= worstRank[i] + 1; k < families[i].nbPref; k++){
-			nbTotRem += families[i].preferences[k].size();
-			families[i].nbTotPref -= families[i].preferences[k].size();
-			for(int l=0; l<families[i].preferences[k].size();l++){
-				int idxChi = families[i].preferences[k][l];
-				int idxPos = families[i].positions[k][l];
-				int idxRank = families[i].ranks[k][l];
-				for(int m = idxPos+1; m < children[idxChi].preferences[idxRank].size();m++){
-					int idxF2 = families[children[idxChi].preferences[idxRank][m]].positions[children[idxChi].ranks[idxRank][m]][children[idxChi].positions[idxRank][m]]--;
-				}
-				children[idxChi].nbTotPref--;
-				children[idxChi].positions[idxRank].erase(children[idxChi].positions[idxRank].begin() + idxPos);
-				children[idxChi].ranks[idxRank].erase(children[idxChi].ranks[idxRank].begin() + idxPos);
-				children[idxChi].preferences[idxRank].erase(children[idxChi].preferences[idxRank].begin() + idxPos);
-			}
-		}
-		families[i].nbPref = worstRank[i] + 1;
-		families[i].preferences.resize(families[i].nbPref);
-		families[i].ranks.resize(families[i].nbPref);
-		families[i].positions.resize(families[i].nbPref);
-	}
-	
 	polish();
 	return nbTotRem;
 }
@@ -605,20 +359,17 @@ void Allocation::polish(){
 	}
 }
 
-void Allocation::reduction(){
-	int nbRed1 = 0;
-	int nbRed2 = 0;
-	int nbRed3 = 0;
-	int nbRed4 = 0;
+void Allocation::reduction(int mode){
+	total_reduced = 0;
 	int i = 0;
+	int num = 0;
 	do{
-		nbRed1 = reductionFam1();
-		nbRed2 = reductionChi1();
-		nbRed3 = reductionFam2();
-		nbRed4 = reductionChi2();
-		cout << "Reduction iteration " << i << " reductionFam1 " << nbRed1 << " reductionChi1 " << nbRed2 << " reductionFam2 " << nbRed3 << " reductionChi2 " << nbRed4 << endl;
+		num = reductionMine(true, mode);
+		num += reductionMine(false, mode);
+		cout << "Iteration " << i << " in mode " << mode << " removed " << num << std::endl;
 		i++;
-	}while(nbRed1 + nbRed2 + nbRed3 + nbRed4 != 0);
+		total_reduced += num;
+	}while(num != 0);
 }
 
 void Allocation::printSol(){
@@ -631,7 +382,7 @@ void Allocation::printSol(){
 void Allocation::printInfo(const string& pathAndFileout){
 	string nameFile = pathAndFileout;
 	std::ofstream file(nameFile.c_str(), std::ios::out | std::ios::app);
-	file << name << "\t" << infos.opt << "\t" << infos.timeCPU << "\t" << infos.timeCPUPP << "\t"<< infos.LB << "\t" << infos.UB << "\t" << infos.contUB << "\t" << infos.nbVar << "\t" << infos.nbCons << "\t" << infos.nbNZ 
+	file << name << "\t" << infos.opt << "\t" << infos.timeCPU << "\t" << infos.timeCPUPP << "\t" << total_reduced << "\t"<< infos.LB << "\t" << infos.UB << "\t" << infos.contUB << "\t" << infos.nbVar << "\t" << infos.nbCons << "\t" << infos.nbNZ 
 		<< "\t" << infos.contUB2 << "\t" << infos.nbVar2 << "\t" << infos.nbCons2 << "\t" << infos.nbNZ2  << endl;
 	file.close();
 }

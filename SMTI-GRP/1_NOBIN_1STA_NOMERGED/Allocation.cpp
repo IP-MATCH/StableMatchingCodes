@@ -286,6 +286,7 @@ void Allocation::polish(){
 }
 
 void Allocation::reduction(int mode){
+	total_reduced = 0;
 	int i = 0;
 	int num = 0;
 	do{
@@ -293,6 +294,7 @@ void Allocation::reduction(int mode){
 		num += reductionMine(false, mode);
 		cout << "Iteration " << i << " in mode " << mode << " removed " << num << std::endl;
 		i++;
+		total_reduced += num;
 	}while(num != 0);
 }
 
@@ -306,7 +308,7 @@ void Allocation::printSol(){
 void Allocation::printInfo(const string& pathAndFileout){
 	string nameFile = pathAndFileout;
 	std::ofstream file(nameFile.c_str(), std::ios::out | std::ios::app);
-	file << name << "\t" << infos.opt << "\t" << infos.timeCPU << "\t" << infos.timeCPUPP << "\t"<< infos.LB << "\t" << infos.UB << "\t" << infos.altInfo << "\t" << infos.contUB << "\t" << infos.nbVar << "\t" << infos.nbCons << "\t" << infos.nbNZ 
+	file << name << "\t" << infos.opt << "\t" << infos.timeCPU << "\t" << infos.timeCPUPP << "\t" << total_reduced << "\t"<< infos.LB << "\t" << infos.UB << "\t" << infos.altInfo << "\t" << infos.contUB << "\t" << infos.nbVar << "\t" << infos.nbCons << "\t" << infos.nbNZ 
 		<< "\t" << infos.contUB2 << "\t" << infos.nbVar2 << "\t" << infos.nbCons2 << "\t" << infos.nbNZ2  << endl;
 	file.close();
 }
