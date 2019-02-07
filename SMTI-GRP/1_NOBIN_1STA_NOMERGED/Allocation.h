@@ -12,7 +12,7 @@
 	#include <algorithm> 
 
 	class Child;
-	class Family;
+	typedef Child Family;
 	class Assignment;
 	class Allocation;
 
@@ -25,21 +25,6 @@
 		int id;
 		int nbPref;
 		int nbTotPref; 
-		vector<vector<int> > preferences;
-		vector<vector<int> > ranks;
-		vector<vector<int> > positions;
-		void print();
-	};
-
-/*	*************************************************************************************
-	*********************************** HOSPITAL ****************************************
-	************************************************************************************* */
-
-	class Family{
-	public:
-		int id;
-		int nbPref;
-		int nbTotPref;
 		vector<vector<int> > preferences;
 		vector<vector<int> > ranks;
 		vector<vector<int> > positions;
@@ -90,16 +75,13 @@
 		
 		void load(const string& path, const string& filein, const int& threshold);
 		void printProb();
-		int reductionFam1();
-		int reductionChi1();
-		int reductionFam2();
-		int reductionChi2();
+		int reductionMine(bool children_side=true, int mode=0);
 		void polish();
-		void reduction();
+		void reduction(int mode);
 		void printSol();
 		void printInfo(const string& pathAndFileout);
 		void checkSolution();
 	};
 	
 
-#endif 
+#endif

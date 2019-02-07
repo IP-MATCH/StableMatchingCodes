@@ -12,12 +12,13 @@ int main(int argc, char **argv){
 	string path = argv[1];
 	string pathAndFileout = argv[3];
 	int minGrade = atoi(argv[4]);
+	int mode = atoi(argv[5]);
 
 	// functions
 	allo.load(path,filein,minGrade);
-	allo.printProb();
+	//allo.printProb();
 
-	manlove(allo);
+	manlove(allo, mode);
 	
 	allo.printSol();
 	allo.checkSolution();
@@ -25,11 +26,11 @@ int main(int argc, char **argv){
 }
 
 
-int manlove(Allocation& allo){
+int manlove(Allocation& allo, int reduction_mode){
 	double initTimeModelCPU = getCPUTime();
 	GRBEnv env = GRBEnv();
 
-	allo.reduction();
+	allo.reduction(reduction_mode);
 	allo.printProb();
 	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPU;
 
