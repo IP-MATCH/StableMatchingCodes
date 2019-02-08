@@ -5,8 +5,12 @@
 	***********************************  DOCTOR *****************************************
 	************************************************************************************* */
 
-void Child::print(){
-	cout << "Child " << id << "\t Preferences (" << nbPref << " groups, " << nbTotPref << " in total)\t";
+void Child::print(bool family){
+	if (family)
+		cout << "Family ";
+	else
+		cout << "Child ";
+	cout << id << "\t Preferences (" << nbPref << " groups, " << nbTotPref << " in total)\t";
 	for(int i=0; i<nbPref; i++){
 		cout << "(";
 			for(int j=0; j<preferences[i].size(); j++){
@@ -139,10 +143,10 @@ void Allocation::load(const string& path, const string& filein, const int& thres
 void Allocation::printProb(){
 	cout << "Instance " << name << endl;
 	for(int i=0; i<nbChildren; i++){
-		children[i].print();
+		children[i].print(false);
 	}
 	for(int i=0; i<nbFamilies; i++){
-		families[i].print();
+		families[i].print(true);
 	}
 }
 
@@ -165,20 +169,8 @@ int Allocation::reductionMine(bool children_side, int mode) {
 		set<int> candidates;
 		set<int> positions;
 		unsigned int count = 0;
-		AgentIterator *iter;
-		switch (mode) {
-			default:
-			case 0:
-				iter = new AgentIterator(these[i], candidates, positions, these, other);
-				break;
-			case 1:
-				iter = new SkipBigIterator<5>(these[i], candidates, positions, these, other);
-				break;
-			case 2:
-				iter = new BestIterator(these[i], candidates, positions, these, other);
-				break;
-		}
-		for(std::pair<int, int> p: *iter) {
+		AgentIterator iter(these[i], candidates, positions, these, other, mode);
+		for(std::pair<int, int> p: iter) {
 			int j = p.first;
 			int k = p.second;
 			int idxFam = these[i].preferences[j][k];
@@ -221,7 +213,6 @@ int Allocation::reductionMine(bool children_side, int mode) {
 				break;
 			}
 		}
-		delete iter;
 	}
 	polish();
 	return nbTotRem;

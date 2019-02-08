@@ -28,7 +28,7 @@
 		vector<vector<int> > preferences;
 		vector<vector<int> > ranks;
 		vector<vector<int> > positions;
-		void print();
+		void print(bool);
 	};
 
 /*	*************************************************************************************
