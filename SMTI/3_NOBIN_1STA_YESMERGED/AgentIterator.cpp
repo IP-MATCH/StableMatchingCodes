@@ -89,6 +89,12 @@ AgentIterator::AgentIterator(const Child & agent, const std::set<int> & candidat
 			case 2:
 				base = new BestIterator(agent, candidates, positions, these, other, 0, 0);
 				break;
+			case 3:
+				base = new SkipBigIterator(agent, candidates, positions, these, other, 15, 0, 0);
+				break;
+			case 4:
+				base = new SkipBigIterator(agent, candidates, positions, these, other, 50, 0, 0);
+				break;
 		}
 	}
 

@@ -1,5 +1,7 @@
 #include "main.h"
 
+#define MAXTIME 3600
+
 /*	*************************************************************************************
 	*************************************  MAIN *****************************************
 	************************************************************************************* */
@@ -35,6 +37,13 @@ int manlove(Allocation& allo, int mode){
 	allo.reduction(mode);
 	//allo.printProb();
 	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPUPP;
+	if (allo.infos.timeCPUPP > MAXTIME) {
+		cout << "Preprocessing took over MAXTIME seconds" << endl;
+		allo.infos.LB  = 0;
+		allo.assignmentByChild.resize(allo.nbChildren, -1);
+		allo.assignmentByFamily.resize(allo.nbFamilies,-1);
+		return -1;
+	}
 
 	// Model
 	try{
@@ -115,7 +124,7 @@ int manlove(Allocation& allo, int mode){
 		} 
 			
 		// Setting of Gurobi
-		model.getEnv().set(GRB_DoubleParam_TimeLimit, 3600 - (getCPUTime() - initTimeModelCPU));
+		model.getEnv().set(GRB_DoubleParam_TimeLimit, MAXTIME - (getCPUTime() - initTimeModelCPU));
 		model.getEnv().set(GRB_IntParam_Threads, 1);
 		model.getEnv().set(GRB_DoubleParam_MIPGap, 0);
 		model.optimize();

@@ -89,6 +89,12 @@ AgentIterator::AgentIterator(const Child & agent, const std::set<int> & candidat
 			case 2:
 				base = new BestIterator(agent, candidates, positions, these, other, 0, 0);
 				break;
+			case 3:
+				base = new SkipBigIterator(agent, candidates, positions, these, other, 15, 0, 0);
+				break;
+			case 4:
+				base = new SkipBigIterator(agent, candidates, positions, these, other, 50, 0, 0);
+				break;
 		}
 	}
 
@@ -102,11 +108,19 @@ AgentIterator::AgentIterator(AgentIterator *other) :
 				break;
 			case 1:
 				base = new SkipBigIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
-						other->get_these(), other->get_other(), 4, other->get_group(), other->get_position());
+						other->get_these(), other->get_other(), 5, other->get_group(), other->get_position());
 				break;
 			case 2:
 				base = new BestIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
 						other->get_these(), other->get_other(), other->get_group(), other->get_position());
+				break;
+			case 3:
+				base = new SkipBigIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
+						other->get_these(), other->get_other(), 15, other->get_group(), other->get_position());
+				break;
+			case 4:
+				base = new SkipBigIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
+						other->get_these(), other->get_other(), 50, other->get_group(), other->get_position());
 				break;
 		}
 	}
@@ -120,11 +134,19 @@ AgentIterator::AgentIterator(AgentIterator *other, int group, int posn) :
 				break;
 			case 1:
 				base = new SkipBigIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
-						other->get_these(), other->get_other(), 4, group, posn);
+						other->get_these(), other->get_other(), 5, group, posn);
 				break;
 			case 2:
 				base = new BestIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
 						other->get_these(), other->get_other(), group, posn);
+				break;
+			case 3:
+				base = new SkipBigIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
+						other->get_these(), other->get_other(), 15, group, posn);
+				break;
+			case 4:
+				base = new SkipBigIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
+						other->get_these(), other->get_other(), 50, group, posn);
 				break;
 		}
 	}
