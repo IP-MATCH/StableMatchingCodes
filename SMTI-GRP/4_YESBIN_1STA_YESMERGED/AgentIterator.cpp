@@ -245,7 +245,6 @@ void BestIterator::increment() {
 	if (lowest_added != -1) {
 		_group = best_group;
 		_position = best_posn;
-		std::cout << "Using " << _group << ", " << _position << std::endl;
 	} else {
 		_group = -1;
 		_position = 0;
@@ -282,7 +281,6 @@ void BestIterator::begin() {
 	if (lowest_added != -1) {
 		_group = best_group;
 		_position = best_posn;
-		std::cout << "Using " << _group << ", " << _position << std::endl;
 	} else {
 		_group = -1;
 		_position = 0;
