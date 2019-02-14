@@ -168,11 +168,15 @@ int Allocation::reductionMine(bool children_side, int mode) {
 	for (int i = 0; i < number_here; i++) {
 		set<int> candidates;
 		set<int> positions;
+		int worst_rank = 0;
 		unsigned int count = 0;
 		AgentIterator iter(these[i], candidates, positions, these, other, mode);
 		for(std::pair<int, int> p: iter) {
 			int j = p.first;
 			int k = p.second;
+			if (j > worst_rank) {
+				worst_rank = j;
+			}
 			int idxFam = these[i].preferences[j][k];
 			int idxRank = these[i].ranks[j][k];
 			positions.insert(idxFam);
@@ -184,7 +188,7 @@ int Allocation::reductionMine(bool children_side, int mode) {
 				}
 			}
 			if (count >= candidates.size()) {
-				for (int k = j + 1; k < these[i].nbPref; k++) {
+				for (int k = worst_rank + 1; k < these[i].nbPref; k++) {
 					nbTotRem += these[i].preferences[k].size();
 					these[i].nbTotPref -= these[i].preferences[k].size();
 					for (unsigned int l = 0; l < these[i].preferences[k].size(); l++) {
@@ -206,7 +210,7 @@ int Allocation::reductionMine(bool children_side, int mode) {
 								other[idxFam].preferences[idxRank].begin() + idxPos);
 					}
 				}
-				these[i].nbPref = j + 1;
+				these[i].nbPref = worst_rank + 1;
 				these[i].preferences.resize(these[i].nbPref);
 				these[i].ranks.resize(these[i].nbPref);
 				these[i].positions.resize(these[i].nbPref);
