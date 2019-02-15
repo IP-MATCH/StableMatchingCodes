@@ -95,6 +95,9 @@ AgentIterator::AgentIterator(const Child & agent, const std::set<int> & candidat
 			case 4:
 				base = new SkipBigIterator(agent, candidates, positions, these, other, 50, 0, 0);
 				break;
+			case 5:
+				base = new BestGroupIterator(agent, candidates, positions, these, other, 0, 0);
+				break;
 		}
 	}
 
@@ -122,6 +125,10 @@ AgentIterator::AgentIterator(AgentIterator *other) :
 				base = new SkipBigIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
 						other->get_these(), other->get_other(), 50, other->get_group(), other->get_position());
 				break;
+			case 5:
+				base = new BestGroupIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
+						other->get_these(), other->get_other(), other->get_group(), other->get_position());
+				break;
 		}
 	}
 
@@ -147,6 +154,10 @@ AgentIterator::AgentIterator(AgentIterator *other, int group, int posn) :
 			case 4:
 				base = new SkipBigIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
 						other->get_these(), other->get_other(), 50, group, posn);
+				break;
+			case 5:
+				base = new BestGroupIterator(other->get_agent(), other->get_candidates(), other->get_positions(),
+						other->get_these(), other->get_other(), group, posn);
 				break;
 		}
 	}
@@ -306,5 +317,86 @@ void BestIterator::begin() {
 	} else {
 		_group = -1;
 		_position = 0;
+	}
+}
+
+BestGroupIterator::BestGroupIterator(const Child & agent, const std::set<int> & candidates,
+		const std::set<int> & positions, const std::vector<Child> & these,
+		const std::vector<Child> & other, int group, int posn) :
+	AgentIteratorBase(agent, candidates, positions, these, other, group, posn) {
+	}
+
+void BestGroupIterator::increment() {
+	int lowest_added = -1;
+	int best_posn = -1;
+	auto & group = _agent.preferences[_group];
+	for(int posn = 0; posn < group.size(); ++posn) {
+		int other_id = group[posn];
+		if (_positions.count(other_id) != 0) {
+			continue;
+		}
+		int num_added = 0;
+		int other_rank = _agent.ranks[_group][posn];
+		for(int group_ind = 0; group_ind <= other_rank; group_ind++) {
+			for(auto other_pref: _other[other_id].preferences[group_ind]) {
+				if (_candidates.count(other_pref) == 0) {
+					num_added++;
+				}
+			}
+		}
+		if ((lowest_added == -1) || (num_added < lowest_added)) {
+			lowest_added = num_added;
+			best_posn = posn;
+		}
+	}
+	if (lowest_added != -1) {
+		_position = best_posn;
+	} else {
+		_group++;
+		if (_group == _agent.preferences.size()) {
+			_position = 0;
+			_group = -1;
+		} else {
+			increment();
+		}
+	}
+}
+
+void BestGroupIterator::begin() {
+	int lowest_added = -1;
+	int best_posn = -1;
+	if (_group == -1) {
+		return;
+	}
+	auto & group = _agent.preferences[_group];
+	for(int posn = 0; posn < group.size(); ++posn) {
+		int other_id = group[posn];
+		if (_positions.count(other_id) != 0) {
+			continue;
+		}
+		int num_added = 0;
+		int other_rank = _agent.ranks[_group][posn];
+		for(int group_ind = 0; group_ind <= other_rank; group_ind++) {
+			for(auto other_pref: _other[other_id].preferences[group_ind]) {
+				if (_candidates.count(other_pref) == 0) {
+					num_added++;
+				}
+			}
+		}
+		if ((lowest_added == -1) || (num_added < lowest_added)) {
+			lowest_added = num_added;
+			best_posn = posn;
+		}
+	}
+	if (lowest_added != -1) {
+		_position = best_posn;
+	} else {
+		_group++;
+		if (_group == _agent.preferences.size()) {
+			_position = 0;
+			_group = -1;
+		} else {
+			increment();
+		}
 	}
 }

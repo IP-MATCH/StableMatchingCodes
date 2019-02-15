@@ -97,5 +97,14 @@ class BestIterator : public AgentIteratorBase {
 		void begin();
 };
 
+class BestGroupIterator : public AgentIteratorBase {
+	public:
+		BestGroupIterator(const Child & agent, const std::set<int> & candidates,
+				const std::set<int> & positions, const std::vector<Child> & these,
+				const std::vector<Child> & other, int group=0, int posn=0);
+		~BestGroupIterator() {}
+		void increment();
+		void begin();
+};
 
 #endif /* AGENTITERATOR_H */
