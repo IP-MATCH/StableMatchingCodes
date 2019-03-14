@@ -1,5 +1,6 @@
 #include "Allocation.h" 
 #include "AgentIterator.h"
+#include "Graph.h"
 
 /*	*************************************************************************************
 	***********************************  DOCTOR *****************************************
@@ -150,7 +151,7 @@ void Allocation::printProb(){
 	}
 }
 
-int Allocation::reductionMine(bool children_side, int mode) {
+int Allocation::reductionExact(bool children_side) {
 	int nbTotRem = 0;
 	int number_here = nbChildren;
 	std::vector<Child> * thesep;
@@ -158,9 +159,119 @@ int Allocation::reductionMine(bool children_side, int mode) {
 	if (children_side) {
 		thesep = &children;
 		otherp = &families;
+		number_here = nbChildren;
 	} else {
 		thesep = &families;
 		otherp = &children;
+		number_here = nbFamilies;
+	}
+	std::vector<Child> & these = (*thesep);
+	std::vector<Child> & other = (*otherp);
+	for (int i = 0; i < number_here; i++) {
+		// A graph is "named" with two integers. The first is a 0 for a candidate
+		// (aka these) or a 1 for a position (aka other)
+		Graph<std::pair<int,int>> g;
+		int n_1 = 0;
+		// We do nbPref - 1 here because there is no point to preprocessing when we
+		// reach the last rank
+		for(int rank = 0; rank < these[i].nbPref - 1; rank++) {
+			for(size_t ind = 0; ind < these[i].preferences[rank].size(); ind++) {
+				int position = these[i].preferences[rank][ind];
+				auto pos_vert = std::make_pair(1, position);
+				g.addVertex(pos_vert, false);
+				int idxRank = these[i].ranks[rank][ind];
+				for(int l = 0; l <= idxRank; l++) {
+					for(size_t k = 0; k < other[position].preferences[l].size(); k++) {
+						int other_cand = other[position].preferences[l][k];
+						if (other_cand == i) { // Don't add the current candidate to the graph
+							continue;
+						}
+						std::pair<int,int> other_cand_vert = std::make_pair(0, other_cand);
+						if (! g.containsVertex(other_cand_vert)) {
+							g.addVertex(other_cand_vert, true);
+							n_1 += 1;
+						}
+						g.addEdge(pos_vert, other_cand_vert);
+					}
+				}
+			}
+			// If n_1 is sufficiently small, then the largest matching must also be
+			// small, as the matching can use each vertex from n_1 at most once, so
+			// we don't even need to try to find a bigger matching.
+			bool matching_cant_exist = (2*n_1 + 1 <= g.size());
+			if (! matching_cant_exist) {
+				for(size_t ind = 0; ind < these[i].preferences[rank].size(); ind++) {
+					int position = these[i].preferences[rank][ind];
+					auto pos_vert = std::make_pair(1, position);
+					g.augment(pos_vert);
+				}
+			}
+			if (matching_cant_exist || (g.size() - g.matchingSize() >= n_1 + 1)) {
+				// preprocess on rank!
+				if (children_side) {
+					std::cout << "child ";
+				} else {
+					std::cout << "family ";
+				}
+				std::cout << "worst rank of " << i << " is " << rank << std::endl;
+#ifdef DEBUG
+//				if ((children_side) and (i == 87)) {
+					std::cout << "g.size() = " << g.size() << ", g.matchingSize() = " << g.matchingSize();
+					std::cout << ", n_1 = " << n_1 << std::endl;
+					g.printGraph();
+					g.printMatching();
+//				}
+#endif /* DEBUG */
+
+				for (int k = rank + 1; k < these[i].nbPref; k++) {
+					nbTotRem += these[i].preferences[k].size();
+					these[i].nbTotPref -= these[i].preferences[k].size();
+					for (unsigned int l = 0; l < these[i].preferences[k].size(); l++) {
+						int idxFam = these[i].preferences[k][l];
+						int idxPos = these[i].positions[k][l];
+						int idxRank = these[i].ranks[k][l];
+						for (unsigned int m = idxPos + 1;
+									m < other[idxFam].preferences[idxRank].size(); m++) {
+							these[other[idxFam].preferences[idxRank][m]]
+									.positions[other[idxFam].ranks[idxRank][m]]
+														[other[idxFam].positions[idxRank][m]]--;
+						}
+						other[idxFam].nbTotPref--;
+						other[idxFam].positions[idxRank].erase(
+								other[idxFam].positions[idxRank].begin() + idxPos);
+						other[idxFam].ranks[idxRank].erase(
+								other[idxFam].ranks[idxRank].begin() + idxPos);
+						other[idxFam].preferences[idxRank].erase(
+								other[idxFam].preferences[idxRank].begin() + idxPos);
+					}
+				}
+				these[i].nbPref = rank + 1;
+				these[i].preferences.resize(these[i].nbPref);
+				these[i].ranks.resize(these[i].nbPref);
+				these[i].positions.resize(these[i].nbPref);
+				break;
+			}
+		}
+	}
+	if (nbTotRem > 0) {
+		polish();
+	}
+	return nbTotRem;
+}
+
+int Allocation::reductionMine(bool children_side, int mode) {
+	int nbTotRem = 0;
+	int number_here;
+	std::vector<Child> * thesep;
+	std::vector<Child> * otherp;
+	if (children_side) {
+		thesep = &children;
+		otherp = &families;
+		number_here = nbChildren;
+	} else {
+		thesep = &families;
+		otherp = &children;
+		number_here = nbFamilies;
 	}
 	std::vector<Child> & these = (*thesep);
 	std::vector<Child> & other = (*otherp);
@@ -218,7 +329,9 @@ int Allocation::reductionMine(bool children_side, int mode) {
 			}
 		}
 	}
-	polish();
+	if (nbTotRem > 0) {
+		polish();
+	}
 	return nbTotRem;
 }
 
@@ -285,8 +398,15 @@ void Allocation::reduction(int mode){
 	int i = 0;
 	int num = 0;
 	do{
-		num = reductionMine(true, mode);
-		num += reductionMine(false, mode);
+		if (mode == 6) {
+			// True means preprocess childrens' lists, removing families.
+			// False means preprocess families' lists, removing children.
+			num = reductionExact(false);
+			num += reductionExact(true);
+		} else {
+			num = reductionMine(false, mode);
+			num += reductionMine(true, mode);
+		}
 		cout << "Iteration " << i << " in mode " << mode << " removed " << num << std::endl;
 		i++;
 		total_reduced += num;

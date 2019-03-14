@@ -77,6 +77,7 @@
 		void load(const string& path, const string& filein, const int& threshold);
 		void printProb();
 		int reductionMine(bool children_side=true, int mode=0);
+		int reductionExact(bool children_side);
 		void polish();
 		void reduction(int mode);
 		void printSol();
