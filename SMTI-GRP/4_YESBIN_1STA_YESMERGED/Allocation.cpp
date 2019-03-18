@@ -397,20 +397,37 @@ void Allocation::reduction(int mode){
 	total_reduced = 0;
 	int i = 0;
 	int num = 0;
-	do{
-		if (mode == 6) {
-			// True means preprocess childrens' lists, removing families.
-			// False means preprocess families' lists, removing children.
+	if (mode == 7) {
+		do {
+			num = reductionMine(false, 1);
+			num += reductionMine(true, 1);
+			cout << "Iteration " << i << " in heuristic removed " << num << std::endl;
+			i++;
+			total_reduced += num;
+		} while (num != 0);
+		do {
 			num = reductionExact(false);
 			num += reductionExact(true);
-		} else {
-			num = reductionMine(false, mode);
-			num += reductionMine(true, mode);
-		}
-		cout << "Iteration " << i << " in mode " << mode << " removed " << num << std::endl;
-		i++;
-		total_reduced += num;
-	}while(num != 0);
+			cout << "Iteration " << i << " in exact mode removed " << num << std::endl;
+			i++;
+			total_reduced += num;
+		} while (num != 0);
+	} else {
+		do{
+			if (mode == 6) {
+				// True means preprocess childrens' lists, removing families.
+				// False means preprocess families' lists, removing children.
+				num = reductionExact(false);
+				num += reductionExact(true);
+			} else {
+				num = reductionMine(false, mode);
+				num += reductionMine(true, mode);
+			}
+			cout << "Iteration " << i << " in mode " << mode << " removed " << num << std::endl;
+			i++;
+			total_reduced += num;
+		}while(num != 0);
+	}
 }
 
 void Allocation::printSol(){
