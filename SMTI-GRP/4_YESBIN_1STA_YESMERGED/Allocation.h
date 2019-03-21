@@ -4,6 +4,7 @@
 	using namespace std;
 	#include <iostream> 
 	#include <fstream>
+#include <list>
 	#include <sstream>
 	#include <vector>
 	#include <string>
@@ -24,7 +25,8 @@
 	public:
 		int id;
 		int nbPref;
-		int nbTotPref; 
+		int nbTotPref;
+		bool mustBeAllocated;
 		vector<vector<int> > preferences;
 		vector<vector<int> > ranks;
 		vector<vector<int> > positions;
@@ -72,12 +74,15 @@
 		vector<int> assignmentByChild;
 		vector<int> assignmentByFamily;
 
+		std::list<int> childrenMustBeAllocated;
+		std::list<int> familiesMustBeAllocated;
+
 		Info infos;
 		
 		void load(const string& path, const string& filein, const int& threshold);
 		void printProb();
 		int reductionMine(bool children_side=true, int mode=0);
-		int reductionExact(bool children_side);
+		int reductionExact(bool children_side, bool supp=false);
 		void polish();
 		void reduction(int mode);
 		void printSol();
