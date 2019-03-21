@@ -1,5 +1,6 @@
 #include "Allocation.h" 
 #include "AgentIterator.h"
+#include "Graph.h"
 
 /*	*************************************************************************************
 	***********************************  DOCTOR *****************************************
@@ -59,6 +60,7 @@ void Allocation::load(const string& path, const string& filein){
 		// Read the preferences of each child
 		for (int i = 0; i < nbChildren; i++){
 			Child c;
+			c.mustBeAllocated = false;
 			int temp;
 			allRanksC[i].resize(nbFamilies,-1); allPreferencesC[i].resize(nbFamilies,-1); 
 
@@ -117,6 +119,7 @@ void Allocation::load(const string& path, const string& filein){
 		// Read the preferences of each family
 		for (int i = 0; i < nbFamilies; i++){
 			Family f;
+			f.mustBeAllocated = false;
 			int temp;
 			allRanksF[i].resize(nbChildren,-1); allPreferencesF[i].resize(nbChildren,-1); 
 
@@ -224,17 +227,182 @@ void Allocation::printProb(){
 	}
 }
 
-int Allocation::reductionMine(bool children_side, int mode) {
+int Allocation::reductionExact(bool children_side, bool supp) {
 	int nbTotRem = 0;
 	int number_here = nbChildren;
+	std::vector<Child> * thesep;
+	std::vector<Child> * otherp;
+	std::list<int> *theseMustBeAllocatedp;
+	std::list<int> *otherMustBeAllocatedp;
+	if (children_side) {
+		// Processing the lists of the children, removing families
+		thesep = &children;
+		otherp = &families;
+		theseMustBeAllocatedp = &childrenMustBeAllocated;
+		otherMustBeAllocatedp = &familiesMustBeAllocated;
+		number_here = nbChildren;
+	} else {
+		thesep = &families;
+		otherp = &children;
+		theseMustBeAllocatedp = &familiesMustBeAllocated;
+		otherMustBeAllocatedp = &childrenMustBeAllocated;
+		number_here = nbFamilies;
+	}
+	std::vector<Child> & these = (*thesep);
+	std::vector<Child> & other = (*otherp);
+	std::list<int> & theseMustBeAllocated = (*theseMustBeAllocatedp);
+	std::list<int> & otherMustBeAllocated = (*otherMustBeAllocatedp);
+	for (int i = 0; i < number_here; i++) {
+		// A graph is "named" with two integers. The first is a 0 for a candidate
+		// (aka these) or a 1 for a position (aka other)
+		Graph<std::pair<int,int>> g;
+		int n_1 = 0;
+		// First add all positions that must be filled.
+		for(int position: otherMustBeAllocated) {
+			// If position is acceptable to i, then skip it.
+			bool isAcceptable = false;
+			for(int otherRank = 0; (!isAcceptable) && otherRank < other[position].nbPref; otherRank++) {
+				for(size_t ind = 0; ind < other[position].preferences[otherRank].size(); ++ind) {
+					if (other[position].preferences[otherRank][ind] == i) {
+						isAcceptable = true;
+						break;
+					}
+				}
+			}
+			if (isAcceptable) {
+				continue;
+			}
+
+			auto pos_vert = std::make_pair(1, position);
+			g.addVertex(pos_vert, false);
+			for(int otherRank = 0; otherRank < other[position].nbPref; otherRank++) {
+				for(size_t ind = 0; ind < other[position].preferences[otherRank].size(); ++ind) {
+					int candidate = other[position].preferences[otherRank][ind];
+					auto cand_vert = std::make_pair(0, candidate);
+					if (!g.containsVertex(cand_vert)) {
+						g.addVertex(cand_vert, true);
+						n_1 += 1;
+					}
+					g.addEdge(pos_vert, cand_vert);
+				}
+			}
+			g.augment(pos_vert);
+		}
+		for(int rank = 0; rank < these[i].nbPref; rank++) {
+			// No point in checking the last rank if we already know this agent must
+			// be allocated, or if we don't care
+			if ((rank == these[i].nbPref - 1) && (these[i].mustBeAllocated || !supp)) {
+				continue;
+			}
+			for(size_t ind = 0; ind < these[i].preferences[rank].size(); ind++) {
+				int position = these[i].preferences[rank][ind];
+				auto pos_vert = std::make_pair(1, position);
+				g.addVertex(pos_vert, false);
+				int idxRank = these[i].ranks[rank][ind];
+				for(int l = 0; l <= idxRank; l++) {
+					for(size_t k = 0; k < other[position].preferences[l].size(); k++) {
+						int other_cand = other[position].preferences[l][k];
+						if (other_cand == i) { // Don't add the current candidate to the graph
+							continue;
+						}
+						std::pair<int,int> other_cand_vert = std::make_pair(0, other_cand);
+						if (! g.containsVertex(other_cand_vert)) {
+							g.addVertex(other_cand_vert, true);
+							n_1 += 1;
+						}
+						g.addEdge(pos_vert, other_cand_vert);
+					}
+				}
+			}
+			// If n_1 is sufficiently small, then the largest matching must also be
+			// small, as the matching can use each vertex from n_1 at most once, so
+			// we don't even need to try to find a bigger matching.
+			bool matching_cant_exist = (2*n_1 + 1 <= g.size());
+			if (! matching_cant_exist) {
+				for(size_t ind = 0; ind < these[i].preferences[rank].size(); ind++) {
+					int position = these[i].preferences[rank][ind];
+					auto pos_vert = std::make_pair(1, position);
+					g.augment(pos_vert);
+				}
+			}
+			if (matching_cant_exist || (g.size() - g.matchingSize() >= n_1 + 1)) {
+				// preprocess on rank!
+				// Firstly, they must be allocated, so mark as such (if we're in that
+				// mode)
+				if (supp && !these[i].mustBeAllocated) {
+					theseMustBeAllocated.push_back(i);
+					these[i].mustBeAllocated = true;
+				}
+#ifdef DEBUG
+				if ((!children_side) and (i == 6)) {
+					std::cout << "g.size() = " << g.size() << ", g.matchingSize() = " << g.matchingSize();
+					std::cout << ", n_1 = " << n_1 << std::endl;
+					g.printGraph();
+					g.printMatching();
+				}
+				if (children_side) {
+					std::cout << "child ";
+				} else {
+					std::cout << "family ";
+				}
+				std::cout << "worst rank of " << i << " is " << rank << " ";
+				int remHere = 0;
+#endif /* DEBUG */
+				for (int k = rank + 1; k < these[i].nbPref; k++) {
+					nbTotRem += these[i].preferences[k].size();
+#ifdef DEBUG
+					remHere += these[i].preferences[k].size();
+#endif /* DEBUG */
+					these[i].nbTotPref -= these[i].preferences[k].size();
+					for (unsigned int l = 0; l < these[i].preferences[k].size(); l++) {
+						int idxFam = these[i].preferences[k][l];
+						int idxPos = these[i].positions[k][l];
+						int idxRank = these[i].ranks[k][l];
+						for (unsigned int m = idxPos + 1;
+									m < other[idxFam].preferences[idxRank].size(); m++) {
+							these[other[idxFam].preferences[idxRank][m]]
+									.positions[other[idxFam].ranks[idxRank][m]]
+														[other[idxFam].positions[idxRank][m]]--;
+						}
+						other[idxFam].nbTotPref--;
+						other[idxFam].positions[idxRank].erase(
+								other[idxFam].positions[idxRank].begin() + idxPos);
+						other[idxFam].ranks[idxRank].erase(
+								other[idxFam].ranks[idxRank].begin() + idxPos);
+						other[idxFam].preferences[idxRank].erase(
+								other[idxFam].preferences[idxRank].begin() + idxPos);
+					}
+				}
+				these[i].nbPref = rank + 1;
+				these[i].preferences.resize(these[i].nbPref);
+				these[i].ranks.resize(these[i].nbPref);
+				these[i].positions.resize(these[i].nbPref);
+#ifdef DEBUG
+				std::cout << "removed " << remHere << std::endl;
+#endif /* DEBUG */
+				break;
+			}
+		}
+	}
+	if (nbTotRem > 0) {
+		polish();
+	}
+	return nbTotRem;
+}
+
+int Allocation::reductionMine(bool children_side, int mode) {
+	int nbTotRem = 0;
+	int number_here;
 	std::vector<Child> * thesep;
 	std::vector<Child> * otherp;
 	if (children_side) {
 		thesep = &children;
 		otherp = &families;
+		number_here = nbChildren;
 	} else {
 		thesep = &families;
 		otherp = &children;
+		number_here = nbFamilies;
 	}
 	std::vector<Child> & these = (*thesep);
 	std::vector<Child> & other = (*otherp);
@@ -262,6 +430,14 @@ int Allocation::reductionMine(bool children_side, int mode) {
 				}
 			}
 			if (count >= candidates.size()) {
+#ifdef DEBUG
+				if (children_side) {
+					std::cout << "child ";
+				} else {
+					std::cout << "family ";
+				}
+				std::cout << "worst rank of " << i << " is " << worst_rank << std::endl;
+#endif /* DEBUG */
 				for (int k = worst_rank + 1; k < these[i].nbPref; k++) {
 					nbTotRem += these[i].preferences[k].size();
 					these[i].nbTotPref -= these[i].preferences[k].size();
@@ -292,7 +468,9 @@ int Allocation::reductionMine(bool children_side, int mode) {
 			}
 		}
 	}
-	polish();
+	if (nbTotRem > 0) {
+		polish();
+	}
 	return nbTotRem;
 }
 
@@ -358,13 +536,46 @@ void Allocation::reduction(int mode){
 	total_reduced = 0;
 	int i = 0;
 	int num = 0;
-	do{
-		num = reductionMine(true, mode);
-		num += reductionMine(false, mode);
-		cout << "Iteration " << i << " in mode " << mode << " removed " << num << std::endl;
-		i++;
-		total_reduced += num;
-	}while(num != 0);
+	if (mode == 7) {
+		do {
+			num = reductionMine(false, 1);
+			num += reductionMine(true, 1);
+			cout << "Iteration " << i << " in heuristic removed " << num << std::endl;
+			i++;
+			total_reduced += num;
+		} while (num != 0);
+		do {
+			num = reductionExact(false);
+			num += reductionExact(true);
+			cout << "Iteration " << i << " in exact mode removed " << num << std::endl;
+			i++;
+			total_reduced += num;
+		} while (num != 0);
+	} else {
+		do{
+			if (mode == 6) {
+				// True means preprocess childrens' lists, removing families.
+				// False means preprocess families' lists, removing children.
+				num = reductionExact(false);
+				num += reductionExact(true);
+			} else if (mode == 8) {
+				num = reductionExact(true);
+				num += reductionExact(false);
+			} else if (mode == 9) {
+				num = reductionExact(false, true);
+				num += reductionExact(true, true);
+			} else if (mode == 10) {
+				num = reductionExact(true, true);
+				num += reductionExact(false, true);
+			} else {
+				num = reductionMine(false, mode);
+				num += reductionMine(true, mode);
+			}
+			cout << "Iteration " << i << " in mode " << mode << " removed " << num << std::endl;
+			i++;
+			total_reduced += num;
+		}while(num != 0);
+	}
 }
 
 void Allocation::printSol(){
