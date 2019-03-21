@@ -4,6 +4,7 @@
 	using namespace std;
 	#include <iostream> 
 	#include <fstream>
+#include <list>
 	#include <sstream>
 	#include <vector>
 	#include <string>
@@ -12,7 +13,7 @@
 	#include <algorithm> 
 
 	class Child;
-	class Family;
+	typedef Child Family;
 	class Assignment;
 	class Allocation;
 
@@ -24,26 +25,12 @@
 	public:
 		int id;
 		int nbPref;
-		int nbTotPref; 
-		vector<vector<int> > preferences;
-		vector<vector<int> > ranks;
-		vector<vector<int> > positions;
-		void print();
-	};
-
-/*	*************************************************************************************
-	*********************************** HOSPITAL ****************************************
-	************************************************************************************* */
-
-	class Family{
-	public:
-		int id;
-		int nbPref;
 		int nbTotPref;
+		bool mustBeAllocated;
 		vector<vector<int> > preferences;
 		vector<vector<int> > ranks;
 		vector<vector<int> > positions;
-		void print();
+		void print(bool);
 	};
 
 /*	*************************************************************************************
@@ -77,6 +64,7 @@
 		string name;
 		int nbChildren;
 		int nbFamilies;
+		int total_reduced;
 		vector<vector<float> > grades;
 
 		vector<Child> children;
@@ -86,20 +74,21 @@
 		vector<int> assignmentByChild;
 		vector<int> assignmentByFamily;
 
+		std::list<int> childrenMustBeAllocated;
+		std::list<int> familiesMustBeAllocated;
+
 		Info infos;
 		
 		void load(const string& path, const string& filein, const int& threshold);
 		void printProb();
-		int reductionFam1();
-		int reductionChi1();
-		int reductionFam2();
-		int reductionChi2();
+		int reductionMine(bool children_side=true, int mode=0);
+		int reductionExact(bool children_side, bool supp=false);
 		void polish();
-		void reduction();
+		void reduction(int mode);
 		void printSol();
 		void printInfo(const string& pathAndFileout);
 		void checkSolution();
 	};
 	
 
-#endif 
+#endif
