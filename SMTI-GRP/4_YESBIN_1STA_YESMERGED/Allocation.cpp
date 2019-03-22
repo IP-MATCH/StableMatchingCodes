@@ -477,6 +477,21 @@ void Allocation::reduction(int mode){
 			i++;
 			total_reduced += num;
 		} while (num != 0);
+	} else if (mode == 11) {
+		do {
+			num = reductionMine(true, 1);
+			num += reductionMine(false, 1);
+			cout << "Iteration " << i << " in heuristic removed " << num << std::endl;
+			i++;
+			total_reduced += num;
+		} while (num != 0);
+		do {
+			num = reductionExact(true);
+			num += reductionExact(false);
+			cout << "Iteration " << i << " in exact mode removed " << num << std::endl;
+			i++;
+			total_reduced += num;
+		} while (num != 0);
 	} else {
 		do{
 			if (mode == 6) {
