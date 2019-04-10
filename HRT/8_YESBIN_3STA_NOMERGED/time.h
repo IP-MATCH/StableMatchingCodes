@@ -12,4 +12,7 @@
 	double getWallTime();
 	double getCPUTime();
 
+static const int MAXTIME = 3600;
+
+
 #endif 

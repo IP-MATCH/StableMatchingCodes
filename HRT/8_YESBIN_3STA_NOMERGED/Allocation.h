@@ -4,6 +4,7 @@
 	using namespace std;
 	#include <iostream> 
 	#include <fstream>
+#include <list>
 	#include <sstream>
 	#include <vector>
 	#include <string>
@@ -24,8 +25,11 @@
 		int nbPref;
 		vector<int> preferences;
 		vector<int> ranks;
+		bool mustBeAllocated;
 
 		void print();
+
+		Doctor() : mustBeAllocated(true) { }
 	};
 
 /*	*************************************************************************************
@@ -38,9 +42,12 @@
 		int cap;
 		int nbPref;
 		int nbTotPref;
+		bool mustBeAllocated;
 		vector<vector<int> > preferences;
-		
+
 		void print();
+
+		Hospital() : mustBeAllocated(true) { }
 	};
 
 /*	*************************************************************************************
@@ -74,8 +81,15 @@
 		int nbDoctors;
 		int nbHospitals;
 
+
+		int total_removed;
+		int pp_mode;
+
 		vector<Doctor> doctors;
 		vector<Hospital> hospitals;
+
+		std::list<int> doctorsMustBeAllocated;
+		std::list<int> hospitalsMustBeAllocated;
 
 		// Given by the ILP model
 		vector<int> assignmentByDoctor;
@@ -87,7 +101,11 @@
 		int reductionHosOff();
 		int reductionResApp();
 		void polish();
-		void reduction();
+		void reduction(int mode);
+		int reductionMineDoctors(int mode);
+		int reductionMineHospitals(int mode);
+		int reductionExactHospital(bool supp);
+		int reductionExactDoctor(bool supp);
 		void printSol();
 		void printInfo(const string& pathAndFileout);
 		void checkSolution();
