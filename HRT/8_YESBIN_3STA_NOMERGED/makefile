@@ -8,15 +8,15 @@ CPPLIB   = -L$(GUROBI_DIR)/lib/ -lgurobi_c++ $(CLIB)
 GUROBI_OPTS = -I$(INC) $(CPPLIB) -lpthread -lm -m64 
 
 CC = g++ 
-CFLAGS = -O2 -Wall -ansi -pedantic -DIL_STD 
+CFLAGS = -O2 -Wall -ansi -pedantic -DIL_STD -std=c++17
 DEBUG = -pg -g -Wall -ansi -pedantic -DIL_STD 
-OBJECTS = main.o Allocation.o time.o
+OBJECTS = main.o Allocation.o time.o Graph.o AgentIterator.o
  
 exec : $(OBJECTS) 
 	$(CC) $(CFLAGS) -o YESBIN_3STA_NOMERGED $(OBJECTS) $(GUROBI_OPTS)
  
-.cpp.o : 
-	$(CC) $(CFLAGS) $(GUROBI_OPTS) -c $< -o $@ 
+.cpp.o : $< Allocation.h Graph.h
+	$(CC) $(CFLAGS) $(GUROBI_OPTS) -c $< -o $@
  
 clean : 
 	rm -f $(OBJECTS) YESBIN_3STA_NOMERGED
