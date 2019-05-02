@@ -255,39 +255,8 @@ int Allocation::reductionExact(bool children_side, bool supp) {
 	for (int i = 0; i < number_here; i++) {
 		// A graph is "named" with two integers. The first is a 0 for a candidate
 		// (aka these) or a 1 for a position (aka other)
-		Graph<std::pair<int,int>> g;
+		Graph g;
 		int n_1 = 0;
-		// First add all positions that must be filled.
-		for(int position: otherMustBeAllocated) {
-			// If position is acceptable to i, then skip it.
-			bool isAcceptable = false;
-			for(int otherRank = 0; (!isAcceptable) && otherRank < other[position].nbPref; otherRank++) {
-				for(size_t ind = 0; ind < other[position].preferences[otherRank].size(); ++ind) {
-					if (other[position].preferences[otherRank][ind] == i) {
-						isAcceptable = true;
-						break;
-					}
-				}
-			}
-			if (isAcceptable) {
-				continue;
-			}
-
-			auto pos_vert = std::make_pair(1, position);
-			g.addVertex(pos_vert, false);
-			for(int otherRank = 0; otherRank < other[position].nbPref; otherRank++) {
-				for(size_t ind = 0; ind < other[position].preferences[otherRank].size(); ++ind) {
-					int candidate = other[position].preferences[otherRank][ind];
-					auto cand_vert = std::make_pair(0, candidate);
-					if (!g.containsVertex(cand_vert)) {
-						g.addVertex(cand_vert, true);
-						n_1 += 1;
-					}
-					g.addEdge(pos_vert, cand_vert);
-				}
-			}
-			g.augment(pos_vert);
-		}
 		for(int rank = 0; rank < these[i].nbPref; rank++) {
 			// No point in checking the last rank if we already know this agent must
 			// be allocated, or if we don't care
@@ -296,8 +265,7 @@ int Allocation::reductionExact(bool children_side, bool supp) {
 			}
 			for(size_t ind = 0; ind < these[i].preferences[rank].size(); ind++) {
 				int position = these[i].preferences[rank][ind];
-				auto pos_vert = std::make_pair(1, position);
-				g.addVertex(pos_vert, false);
+				g.addVertex(1, position);
 				int idxRank = these[i].ranks[rank][ind];
 				for(int l = 0; l <= idxRank; l++) {
 					for(size_t k = 0; k < other[position].preferences[l].size(); k++) {
@@ -305,12 +273,11 @@ int Allocation::reductionExact(bool children_side, bool supp) {
 						if (other_cand == i) { // Don't add the current candidate to the graph
 							continue;
 						}
-						std::pair<int,int> other_cand_vert = std::make_pair(0, other_cand);
-						if (! g.containsVertex(other_cand_vert)) {
-							g.addVertex(other_cand_vert, true);
+						if (! g.containsVertex(0, other_cand)) {
+							g.addVertex(0, other_cand);
 							n_1 += 1;
 						}
-						g.addEdge(pos_vert, other_cand_vert);
+						g.addEdge(position, other_cand);
 					}
 				}
 			}
@@ -321,9 +288,46 @@ int Allocation::reductionExact(bool children_side, bool supp) {
 			if (! matching_cant_exist) {
 				for(size_t ind = 0; ind < these[i].preferences[rank].size(); ind++) {
 					int position = these[i].preferences[rank][ind];
-					auto pos_vert = std::make_pair(1, position);
-					g.augment(pos_vert);
+					g.augment(position);
 				}
+			}
+			// Add P' in this
+			// Yes, I'm abusing while statements, so I can break out easier.
+			while (rank == 0) {
+				// Don't add P' if we don't need to.
+				if (matching_cant_exist || (g.size() - g.matchingSize() >= n_1 + 1)) {
+					break;
+				}
+				// First add all positions that must be filled.
+				for(int position: otherMustBeAllocated) {
+					// If position is acceptable to i, then skip it.
+					bool isAcceptable = false;
+					for(int otherRank = 0; (!isAcceptable) && otherRank < other[position].nbPref; otherRank++) {
+						for(size_t ind = 0; ind < other[position].preferences[otherRank].size(); ++ind) {
+							if (other[position].preferences[otherRank][ind] == i) {
+								isAcceptable = true;
+								break;
+							}
+						}
+					}
+					if (isAcceptable) {
+						continue;
+					}
+					g.addVertex(1, position);
+					for(int otherRank = 0; otherRank < other[position].nbPref; otherRank++) {
+						for(size_t ind = 0; ind < other[position].preferences[otherRank].size(); ++ind) {
+							int candidate = other[position].preferences[otherRank][ind];
+							if (!g.containsVertex(0, candidate)) {
+								g.addVertex(0, candidate);
+								n_1 += 1;
+							}
+							g.addEdge(position, candidate);
+						}
+					}
+					g.augment(position);
+				}
+				// I'm using a while loop as an if statement, so I need to break out.
+				break;
 			}
 			if (matching_cant_exist || (g.size() - g.matchingSize() >= n_1 + 1)) {
 				// preprocess on rank!
