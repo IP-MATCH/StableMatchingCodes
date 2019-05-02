@@ -3,7 +3,7 @@
 
 
 // Expected biggest graph, to save on allocations
-const size_t expected_size = 2048;
+const size_t expected_size = 25000;
 
 Graph::Graph() : _exists(2), _adjacents(2), _matching(2), _size(0), _matching_size(0) {
   _exists[0] = std::vector<bool>(expected_size, false);
