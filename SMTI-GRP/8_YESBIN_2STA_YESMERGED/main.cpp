@@ -34,7 +34,9 @@ int manlove(Allocation& allo, int mode){
 	GRBEnv env = GRBEnv();
 
 	double initTimeModelCPUPP = getCPUTime();
-	allo.reduction(mode);
+	if (mode != 12) {
+		allo.reduction(mode);
+	}
 	//allo.printProb();
 	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPUPP;
 	if (allo.infos.timeCPUPP > MAXTIME) {

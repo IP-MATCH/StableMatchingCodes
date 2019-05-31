@@ -29,8 +29,16 @@ int manlove(Allocation& allo, int mode){
 	double initTimeModelCPU = getCPUTime();
 	GRBEnv env = GRBEnv();
 
-	allo.reduction(mode);
-	allo.printProb();
+	if (mode != 12) {
+		allo.reduction(mode);
+	}
+	if (allo.infos.timeCPUPP > MAXTIME) {
+		cout << "Preprocessing took over " << MAXTIME << " seconds" << endl;
+		allo.infos.LB  = 0;
+		allo.assignmentByChild.resize(allo.nbChildren, -1);
+		allo.assignmentByFamily.resize(allo.nbFamilies,-1);
+		return -1;
+	}
 	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPU;
 
 	// Model
