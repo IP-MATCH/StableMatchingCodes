@@ -27,21 +27,19 @@ inline std::ostream& operator<<(std::ostream& o, const std::pair<int, int> &x) {
 #endif /* DEBUG */
 
 
-template<class t_name>
 class Graph {
   public:
     Graph();
-    void addVertex(t_name name, bool open=false);
-    bool containsVertex(t_name name) const;
-    void addEdge(t_name v1, t_name v2);
-    const std::list<int> adjacent(t_name vertex) const;
-    int matched(t_name vertex) const;
-    void augment(t_name vertex);
+    void addVertex(int side, int name);
+    bool containsVertex(int side, int name) const;
+    void addEdge(int v1, int v2);
+    int matched(int vertex) const;
+    void augment(int vertex);
 
     int size() const;
     int matchingSize() const;
 
-    t_name name(int vert_index);
+    int name(int vert_index);
 
 #ifdef DEBUG
     void printGraph();
@@ -49,10 +47,12 @@ class Graph {
 #endif /* DEBUG */
 
   private:
-    std::unordered_map<t_name, int, pairhash> _names;
-    std::unordered_map<int, t_name > _indices;
-    std::vector<std::list<int>> _adjacents;
-    std::unordered_map<int, int> _matching;
+    std::vector<std::vector<bool>> _exists;
+    std::vector<std::vector<std::vector<int>>> _adjacents;
+    std::vector<std::vector<signed int>> _matching;
+
+    int _size;
+    int _matching_size;
 
     bool internal_augment(int now, std::vector<bool> & visited, std::list<int> & path);
 };
