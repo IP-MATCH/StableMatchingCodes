@@ -80,7 +80,7 @@
 		void load(const string& path, const string& filein);
 		void printProb();
 		int reductionMine(bool children_side=true, int mode=0, bool alt_store=false);
-		int reductionExact(bool children_side, bool supp=false);
+		int reductionExact(bool children_side, bool supp=false, bool early_exit=false);
 		void polish();
 		void reduction(int mode);
 		void printSol();

@@ -227,7 +227,7 @@ void Allocation::printProb(){
 	}
 }
 
-int Allocation::reductionExact(bool children_side, bool supp) {
+int Allocation::reductionExact(bool children_side, bool supp, bool early_exit) {
 	int nbTotRem = 0;
 	int number_here = nbChildren;
 	std::vector<Child> * thesep;
@@ -253,6 +253,11 @@ int Allocation::reductionExact(bool children_side, bool supp) {
 	std::list<int> & theseMustBeAllocated = (*theseMustBeAllocatedp);
 	std::list<int> & otherMustBeAllocated = (*otherMustBeAllocatedp);
 	for (int i = 0; i < number_here; i++) {
+		// Early exit!
+		const float ratio = 0.1;
+		if (early_exit && (i >= ratio * number_here) && (nbTotRem == 0)) {
+			return 0;
+		}
 		// A graph is "named" with two integers. The first is a 0 for a candidate
 		// (aka these) or a 1 for a position (aka other)
 		Graph g;
@@ -599,6 +604,12 @@ void Allocation::reduction(int mode){
 			} else if (mode == 13) {
 				num = reductionMine(false, 0, true);
 				num += reductionMine(true, 0, true);
+			} else if (mode == 14) {
+				num = reductionExact(false, false, true);
+				num += reductionExact(true, false, true);
+			} else if (mode == 15) {
+				num = reductionExact(true, false, true);
+				num += reductionExact(false, false, true);
 			} else {
 				num = reductionMine(false, mode);
 				num += reductionMine(true, mode);
