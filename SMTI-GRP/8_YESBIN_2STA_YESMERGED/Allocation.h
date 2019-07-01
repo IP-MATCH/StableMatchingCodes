@@ -81,7 +81,7 @@
 		
 		void load(const string& path, const string& filein, const int& threshold);
 		void printProb();
-		int reductionMine(bool children_side=true, int mode=0);
+		int reductionMine(bool children_side=true, int mode=0, bool alt_store=false);
 		int reductionExact(bool children_side, bool supp=false);
 		void polish();
 		void reduction(int mode);

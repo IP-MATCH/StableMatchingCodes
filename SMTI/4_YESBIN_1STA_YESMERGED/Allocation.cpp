@@ -394,19 +394,22 @@ int Allocation::reductionExact(bool children_side, bool supp) {
 	return nbTotRem;
 }
 
-int Allocation::reductionMine(bool children_side, int mode) {
+int Allocation::reductionMine(bool children_side, int mode, bool alt_store) {
 	int nbTotRem = 0;
 	int number_here;
+	int comp;
 	std::vector<Child> * thesep;
 	std::vector<Child> * otherp;
 	if (children_side) {
 		thesep = &children;
 		otherp = &families;
 		number_here = nbChildren;
+		comp = nbFamilies;
 	} else {
 		thesep = &families;
 		otherp = &children;
 		number_here = nbFamilies;
+		comp = nbChildren;
 	}
 	std::vector<Child> & these = (*thesep);
 	std::vector<Child> & other = (*otherp);
@@ -414,8 +417,10 @@ int Allocation::reductionMine(bool children_side, int mode) {
 	for (int i = 0; i < number_here; i++) {
 		set<int> candidates;
 		set<int> positions;
+		vector<bool> cand_in(comp, false);
+    int cand_size = 0;
 		int worst_rank = 0;
-		unsigned int count = 0;
+		int count = 0;
 		AgentIterator iter(these[i], candidates, positions, these, other, mode);
 		for(std::pair<int, int> p: iter) {
 			int j = p.first;
@@ -430,10 +435,15 @@ int Allocation::reductionMine(bool children_side, int mode) {
 			for (int l = 0; l <= idxRank; l++) {
 				for (unsigned int m = 0; m < other[idxFam].preferences[l].size();
 							m++) {
-					candidates.insert(other[idxFam].preferences[l][m]);
+					if ((alt_store && cand_in[other[idxFam].preferences[l][m]] == false) ||
+					   (!alt_store && candidates.count(other[idxFam].preferences[l][m]) == 0)) {
+						candidates.insert(other[idxFam].preferences[l][m]);
+						cand_in[other[idxFam].preferences[l][m]] = true;
+						cand_size++;
+					}
 				}
 			}
-			if (count >= candidates.size()) {
+			if (count >= cand_size) {
 #ifdef DEBUG
 				if (children_side) {
 					std::cout << "child ";
@@ -586,6 +596,9 @@ void Allocation::reduction(int mode){
 			} else if (mode == 10) {
 				num = reductionExact(true, true);
 				num += reductionExact(false, true);
+			} else if (mode == 13) {
+				num = reductionMine(false, 0, true);
+				num += reductionMine(true, 0, true);
 			} else {
 				num = reductionMine(false, mode);
 				num += reductionMine(true, mode);
