@@ -328,19 +328,16 @@ int Allocation::reductionExact(bool children_side, bool supp, bool early_exit) {
 int Allocation::reductionMine(bool children_side, int mode, bool alt_store) {
 	int nbTotRem = 0;
 	int number_here;
-	int comp;
 	std::vector<Child> * thesep;
 	std::vector<Child> * otherp;
 	if (children_side) {
 		thesep = &children;
 		otherp = &families;
 		number_here = nbChildren;
-		comp = nbFamilies;
 	} else {
 		thesep = &families;
 		otherp = &children;
 		number_here = nbFamilies;
-		comp = nbChildren;
 	}
 	std::vector<Child> & these = (*thesep);
 	std::vector<Child> & other = (*otherp);
@@ -348,8 +345,8 @@ int Allocation::reductionMine(bool children_side, int mode, bool alt_store) {
 	for (int i = 0; i < number_here; i++) {
 		set<int> candidates;
 		set<int> positions;
-		vector<bool> cand_in(comp, false);
-    int cand_size = 0;
+		vector<bool> cand_in(number_here, false);
+		int cand_size = 0;
 		int worst_rank = 0;
 		int count = 0;
 		AgentIterator iter(these[i], candidates, positions, these, other, mode);

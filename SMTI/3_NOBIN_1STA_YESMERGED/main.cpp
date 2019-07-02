@@ -10,6 +10,7 @@ int main(int argc, char **argv){
 	
 	// local variables
 	Allocation allo ;
+	allo.total_reduced = 0;
 	string filein = argv[2];
 	string path = argv[1];
 	string pathAndFileout = argv[3];
