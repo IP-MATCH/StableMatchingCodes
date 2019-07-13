@@ -230,6 +230,7 @@ void Allocation::printProb(){
 int Allocation::reductionExact(bool children_side, bool supp, bool early_exit) {
 	int nbTotRem = 0;
 	int number_here = nbChildren;
+	bool newMustAlways = false;
 	std::vector<Child> * thesep;
 	std::vector<Child> * otherp;
 	std::list<int> *theseMustBeAllocatedp;
@@ -341,6 +342,7 @@ int Allocation::reductionExact(bool children_side, bool supp, bool early_exit) {
 				if (supp && !these[i].mustBeAllocated) {
 					theseMustBeAllocated.push_back(i);
 					these[i].mustBeAllocated = true;
+					newMustAlways = true;
 				}
 #ifdef DEBUG
 				if ((!children_side) and (i == 6)) {
@@ -395,6 +397,9 @@ int Allocation::reductionExact(bool children_side, bool supp, bool early_exit) {
 	}
 	if (nbTotRem > 0) {
 		polish();
+	}
+	if ((nbTotRem == 0) && (newMustAlways)) {
+		return -1;
 	}
 	return nbTotRem;
 }
@@ -552,6 +557,7 @@ void Allocation::reduction(int mode){
 	total_reduced = 0;
 	int i = 0;
 	int num = 0;
+	bool keepGoing;
 	if (mode == 7) {
 		do {
 			num = reductionMine(false, 1);
@@ -584,6 +590,7 @@ void Allocation::reduction(int mode){
 		} while (num != 0);
 	} else {
 		do{
+			keepGoing = false;
 			if (mode == 6) {
 				// True means preprocess childrens' lists, removing families.
 				// False means preprocess families' lists, removing children.
@@ -594,9 +601,17 @@ void Allocation::reduction(int mode){
 				num += reductionExact(false);
 			} else if (mode == 9) {
 				num = reductionExact(false, true);
+				if (num == -1) {
+					num = 0;
+					keepGoing = true;
+				}
 				num += reductionExact(true, true);
 			} else if (mode == 10) {
 				num = reductionExact(true, true);
+				if (num == -1) {
+					num = 0;
+					keepGoing = true;
+				}
 				num += reductionExact(false, true);
 			} else if (mode == 13) {
 				num = reductionMine(false, 0, true);
@@ -614,7 +629,7 @@ void Allocation::reduction(int mode){
 			cout << "Iteration " << i << " in mode " << mode << " removed " << num << std::endl;
 			i++;
 			total_reduced += num;
-		}while(num != 0);
+		}while(keepGoing || (num != 0));
 	}
 }
 
