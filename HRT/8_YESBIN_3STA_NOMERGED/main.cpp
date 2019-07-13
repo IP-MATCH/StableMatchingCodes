@@ -16,14 +16,14 @@ int main(int argc, char **argv){
 
 	// functions
 	allo.load(path,filein);
-	allo.printProb();
+	//allo.printProb();
 	allo.pp_mode = mode;
 
-	manlove(allo, mode);
-
-	allo.printSol();
-	allo.checkSolution();
-	allo.printInfo(pathAndFileout);
+	if (manlove(allo, mode) >= 0) {
+    allo.printSol();
+    allo.checkSolution();
+  }
+  allo.printInfo(pathAndFileout);
 }
 
 int manlove(Allocation& allo, int mode){
