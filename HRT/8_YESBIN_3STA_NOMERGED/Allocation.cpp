@@ -406,6 +406,7 @@ int Allocation::reductionResApp(){
  * Reduce on the doctor's preference lists, removing hospitals.
  */
 int Allocation::reductionExactDoctor(bool supp) {
+	bool newMustBeAllocated = false;
 	int nbTotRem = 0;
 	for (int i = 0; i < nbDoctors; i++) {
 		Graph g(1);
@@ -415,7 +416,7 @@ int Allocation::reductionExactDoctor(bool supp) {
 			bool isAcceptable = false;
 			for(size_t rank = 0; (!isAcceptable) && rank < hospitals[position].preferences.size(); ++rank) {
 				for(size_t ind = 0; ind < hospitals[position].preferences[rank].size(); ++ind) {
-					if (hospitals[position].preferences[rank][ind] == i) {
+					if (hospitals[position].preferences[rank][ind] == doctors[i].id) {
 						isAcceptable = true;
 						break;
 					}
@@ -425,13 +426,13 @@ int Allocation::reductionExactDoctor(bool supp) {
 				continue;
 			}
 			auto pos_vert = std::make_pair(1, position);
-			g.addVertex(pos_vert, false);
+			g.addVertex(pos_vert, hospitals[position].cap);
 			for(size_t rank = 0; rank < hospitals[position].preferences.size(); ++rank) {
 				for(size_t ind = 0; ind < hospitals[position].preferences[rank].size(); ++ind) {
 					int candidate = hospitals[position].preferences[rank][ind] - 1;
 					auto cand_vert = std::make_pair(0, candidate);
 					if (!g.containsVertex(cand_vert)) {
-						g.addVertex(cand_vert, true);
+						g.addVertex(cand_vert, 1);
 					}
 					g.addEdge(pos_vert, cand_vert);
 				}
@@ -441,12 +442,12 @@ int Allocation::reductionExactDoctor(bool supp) {
 		for(size_t rank = 0; rank < doctors[i].preferences.size(); rank++) {
 			// No point in checking the last rank if we already know this agent must
 			// be allocated, or if we don't care
-			if ((rank == doctors[i].preferences.size()- 1) && (doctors[i].mustBeAllocated || !supp)) {
+			if ((rank == doctors[i].preferences.size() - 1) && (doctors[i].mustBeAllocated || !supp)) {
 				continue;
 			}
 			int position = doctors[i].preferences[rank] - 1;
 			auto pos_vert = std::make_pair(1, position);
-			g.addVertex(pos_vert, false);
+			g.addVertex(pos_vert, hospitals[position].cap);
 			bool break_yet = false;
 			for(size_t k = 0; k < hospitals[position].preferences.size(); ++k) {
 				for(size_t l = 0; l < hospitals[position].preferences[k].size(); ++l) {
@@ -458,7 +459,7 @@ int Allocation::reductionExactDoctor(bool supp) {
 					}
 					std::pair<int,int> doctor_cand_vert = std::make_pair(0, doctor_cand);
 					if (! g.containsVertex(doctor_cand_vert)) {
-						g.addVertex(doctor_cand_vert, true);
+						g.addVertex(doctor_cand_vert, 1);
 					}
 					g.addEdge(pos_vert, doctor_cand_vert);
 				}
@@ -485,6 +486,7 @@ int Allocation::reductionExactDoctor(bool supp) {
 				if (supp && !doctors[i].mustBeAllocated) {
 					doctorsMustBeAllocated.push_back(i);
 					doctors[i].mustBeAllocated = true;
+					newMustBeAllocated = true;
 				}
 #ifdef DEBUG
 				if (i == 6) {
@@ -522,6 +524,9 @@ int Allocation::reductionExactDoctor(bool supp) {
 	if (nbTotRem > 0) {
 		polish();
 	}
+	if ((nbTotRem == 0) && (newMustBeAllocated == true)) {
+		return -1;
+	}
 	return nbTotRem;
 }
 
@@ -529,6 +534,7 @@ int Allocation::reductionExactDoctor(bool supp) {
  * Reduce on the hospital's preference lists, removing doctors.
  */
 int Allocation::reductionExactHospital(bool supp) {
+	bool newMustBeAllocated = false;
 	int nbTotRem = 0;
 	for (size_t i = 0; i < (size_t)nbHospitals; i++) {
 		Graph g(hospitals[i].cap);
@@ -598,6 +604,7 @@ int Allocation::reductionExactHospital(bool supp) {
 				if (supp && !hospitals[i].mustBeAllocated) {
 					hospitalsMustBeAllocated.push_back(i);
 					hospitals[i].mustBeAllocated = true;
+					newMustBeAllocated = true;
 				}
 #ifdef DEBUG
 				if (i == 0) {
@@ -637,6 +644,9 @@ int Allocation::reductionExactHospital(bool supp) {
 	}
 	if (nbTotRem > 0) {
 		polish();
+	}
+	if ((nbTotRem == 0) && (newMustBeAllocated == true)) {
+		return -1;
 	}
 	return nbTotRem;
 }
@@ -705,7 +715,9 @@ void Allocation::reduction(int mode){
 			i++;
 		} while (this_time != 0);
 	} else {
+		bool keep_going;
 		do{
+			keep_going = false;
 			if (mode == 0) {
 				nbRed1 = reductionHosOff();
 				nbRed2 = reductionResApp();
@@ -724,12 +736,34 @@ void Allocation::reduction(int mode){
 				this_time += reductionExactHospital(false);
 				total_removed += this_time;
 			} else if (mode == 9) {
-				this_time = reductionExactHospital(true);
-				this_time += reductionExactDoctor(true);
+				int num = reductionExactHospital(true);
+				if (num == -1) {
+					keep_going = true;
+					this_time = 0;
+				} else {
+					this_time = num;
+				}
+				num = reductionExactDoctor(true);
+				if (num == -1) {
+					keep_going = true;
+				} else {
+					this_time += num;
+				}
 				total_removed += this_time;
 			} else if (mode == 10) {
-				this_time = reductionExactDoctor(true);
-				this_time += reductionExactHospital(true);
+				int num = reductionExactDoctor(true);
+				if (num == -1) {
+					keep_going = true;
+					this_time = 0;
+				} else {
+					this_time = num;
+				}
+				num = reductionExactHospital(true);
+				if (num == -1) {
+					keep_going = true;
+				} else {
+					this_time += num;
+				}
 				total_removed += this_time;
 			} else {
 				this_time = reductionMineHospitals(mode);
@@ -742,7 +776,7 @@ void Allocation::reduction(int mode){
 				cout << "Time elapsed, breaking";
 				break;
 			}
-		}while(this_time != 0);
+		}while(keep_going || this_time != 0);
 	}
 	polish();
 }
