@@ -19,7 +19,7 @@ struct pairhash {
 		}
 };
 
-#ifdef DEBUG_GRAPH
+#if defined(DEBUG_GRAPH) || defined(DEBUG)
 #include <iostream>
 inline std::ostream& operator<<(std::ostream& o, const std::pair<int, int> &x) {
   o << "(" << x.first << ", " << x.second << ")";
@@ -31,6 +31,7 @@ struct Edge {
     int id;
     int cap;
     int flow;
+    bool reverse;
 };
 
 typedef std::pair<int, int> Vertex;

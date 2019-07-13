@@ -27,17 +27,21 @@ void Graph::addVertex(Vertex name, int capacity) {
       e1.id = index;
       e1.flow = 0;
       e1.cap = capacity;
+      e1.reverse = false;
       e2.id = Graph::SOURCE;
       e2.flow = 0;
       e2.cap = capacity;
+      e2.reverse = false;
       _left_total += capacity;
     } else if (name.first == 1) { // right side
       e1.id = index;
       e1.flow = 0;
       e1.cap = capacity;
+      e1.reverse = false;
       e2.id = Graph::SINK;
       e2.flow = 0;
       e2.cap = capacity;
+      e2.reverse = false;
     }
     this->_adjacents[e1.id][e2.id] = e2;
     this->_adjacents[e2.id][e1.id] = e1;
@@ -63,9 +67,11 @@ void Graph::addEdge(Vertex v1, Vertex v2) {
   e1.id = i1;
   e1.cap = std::numeric_limits<int>::max();
   e1.flow = 0;
+  e1.reverse = false;
   e2.id = i2;
   e2.cap = std::numeric_limits<int>::max();
   e2.flow = 0;
+  e2.reverse = true;
   _adjacents[i1][i2] = e2;
   _adjacents[i2][i1] = e1;
 }
@@ -79,7 +85,7 @@ int Graph::maxFlow() const {
 }
 
 bool Graph::can_preprocess() {
-  return _cap_original + _left_total <= _cap_total - max_flow;
+  return _cap_original + cap_left() <= _cap_total - max_flow;
 }
 
 int Graph::cap_left() const {
@@ -138,6 +144,14 @@ bool Graph::internal_augment(int now, std::vector<bool> & visited,
     if (next_edge.flow >= next_edge.cap) {
       continue;
     }
+    // If we're going "backwards" we need to use up (subtract) flow, so check we
+    // have some. Note that since we are checking backwards, the flow will also
+    // be negative
+    if (next_edge.reverse) {
+      if (next_edge.flow >= 0) {
+        continue;
+      }
+    }
     //std::cout << "Considering " << _indices[next_edge.id] << " which has " << next_edge.flow << "/" << next_edge.cap << std::endl;
     if (next_edge.id == Graph::SINK) {
       // Found an augmenting flow. Modify flows used.
@@ -152,7 +166,12 @@ bool Graph::internal_augment(int now, std::vector<bool> & visited,
 #endif /* DEBUG_GRAPH */
       for(auto p: path) {
         if (p != Graph::SOURCE) {
-          int new_flow = _adjacents[start][p].cap - _adjacents[start][p].flow;
+          int new_flow;
+          if (next_edge.reverse) {
+            new_flow = _adjacents[start][p].flow;
+          } else {
+            new_flow = _adjacents[start][p].cap - _adjacents[start][p].flow;
+          }
           if (_adjacents[start][p].flow < 0 && _adjacents[start][p].cap == std::numeric_limits<int>::max()) {
             new_flow = std::numeric_limits<int>::max();
           }
@@ -160,7 +179,12 @@ bool Graph::internal_augment(int now, std::vector<bool> & visited,
         }
 #ifdef DEBUG_GRAPH
         if (p != Graph::SOURCE) {
-          int new_flow = _adjacents[start][p].cap - _adjacents[start][p].flow;
+          int new_flow;
+          if (next_edge.reverse) {
+            new_flow = _adjacents[start][p].flow;
+          } else {
+            new_flow = _adjacents[start][p].cap - _adjacents[start][p].flow;
+          }
           if (_adjacents[start][p].flow < 0 && _adjacents[start][p].cap == std::numeric_limits<int>::max()) {
             new_flow = std::numeric_limits<int>::max();
           }
