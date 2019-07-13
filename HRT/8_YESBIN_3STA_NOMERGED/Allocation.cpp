@@ -241,10 +241,14 @@ int Allocation::reductionMineDoctors(int mode) {
 			}
 			if (count >= candidates.size()) {
 #ifdef DEBUG
-				std::cout << "doctor worst rank of " << i << " is " << worst_rank << std::endl;
+				std::cout << "doctor worst rank of " << doctors[i].id << " is " << worst_rank << std::endl;
+				int remHere = 0;
 #endif /* DEBUG */
 				for (int k = worst_rank + 1; k < doctors[i].nbPref; k++) {
 					nbTotRem += 1;
+#ifdef DEBUG
+					remHere += 1;
+#endif /* DEBUG */
 					int idxHos = doctors[i].preferences[k] - 1;
 					for(size_t rank = 0; rank < hospitals[idxHos].preferences.size(); ++rank) {
 						auto posDoc = std::find(hospitals[idxHos].preferences[rank].begin(), hospitals[idxHos].preferences[rank].end(), i+1);
@@ -254,6 +258,9 @@ int Allocation::reductionMineDoctors(int mode) {
 						}
 					}
 				}
+#ifdef DEBUG
+				std::cout << "removed " << remHere << std::endl;
+#endif /* DEBUG */
 				doctors[i].nbPref = worst_rank + 1;
 				doctors[i].preferences.resize(doctors[i].nbPref);
 				break;
@@ -300,9 +307,13 @@ int Allocation::reductionMineHospitals(int mode) {
 			if (count >= candidate_cap) {
 #ifdef DEBUG
 				std::cout << "hospital worst rank of " << i << " is " << worst_rank << std::endl;
+				int remHere = 0;
 #endif /* DEBUG */
 				for (int k = worst_rank + 1; k < hospitals[i].nbPref; k++) {
 					nbTotRem += hospitals[i].preferences[k].size();
+#ifdef DEBUG
+					remHere += hospitals[i].preferences[k].size();
+#endif /* DEBUG */
 					hospitals[i].nbTotPref -= hospitals[i].preferences[k].size();
 					for (unsigned int l = 0; l < hospitals[i].preferences[k].size(); l++) {
 						int idxDoc = hospitals[i].preferences[k][l] - 1;
@@ -311,7 +322,6 @@ int Allocation::reductionMineHospitals(int mode) {
 								doctors[idxDoc].preferences.erase(doctors[idxDoc].preferences.begin() + m);
 								doctors[idxDoc].ranks.erase(doctors[idxDoc].ranks.begin() + m);
 								doctors[idxDoc].nbPref--;
-								nbTotRem++;
 								break;
 							}
 						}
@@ -319,6 +329,9 @@ int Allocation::reductionMineHospitals(int mode) {
 				}
 				hospitals[i].nbPref = worst_rank + 1;
 				hospitals[i].preferences.resize(hospitals[i].nbPref);
+#ifdef DEBUG
+				std::cout << "removed " << remHere << std::endl;
+#endif /* DEBUG */
 				break;
 			}
 		}
@@ -609,7 +622,6 @@ int Allocation::reductionExactHospital(bool supp) {
 								doctors[idxDoc].preferences.erase(doctors[idxDoc].preferences.begin() + n); 
 								doctors[idxDoc].ranks.erase(doctors[idxDoc].ranks.begin() + n); 
 								doctors[idxDoc].nbPref--;
-								nbTotRem++;
 							}
 						}
 					}

@@ -29,7 +29,7 @@
 
 		void print();
 
-		Doctor() : mustBeAllocated(true) { }
+		Doctor() : mustBeAllocated(false) { }
 	};
 
 /*	*************************************************************************************
@@ -47,7 +47,7 @@
 
 		void print();
 
-		Hospital() : mustBeAllocated(true) { }
+		Hospital() : mustBeAllocated(false) { }
 	};
 
 /*	*************************************************************************************
