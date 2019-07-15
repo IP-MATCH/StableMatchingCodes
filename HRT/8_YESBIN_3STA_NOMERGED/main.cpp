@@ -37,7 +37,9 @@ int manlove(Allocation& allo, int mode){
 	if (allo.infos.timeCPUPP > MAXTIME) {
 		cout << "Preprocessing took over " << MAXTIME << " seconds" << endl;
 		allo.infos.LB  = 0;
+		allo.infos.timeCPU = MAXTIME;
 		allo.assignmentByDoctor.resize(allo.nbDoctors, -1);
+		allo.assignmentByHospital.resize(allo.nbHospitals);
 		for(int i = 0; i < allo.nbHospitals; ++i) {
 			allo.assignmentByHospital[i].resize(allo.hospitals[i].cap, -1);
 		}
