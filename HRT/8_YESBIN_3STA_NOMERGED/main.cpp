@@ -33,6 +33,7 @@ int manlove(Allocation& allo, int mode){
 	if (mode != 12) {
 		allo.reduction(mode);
 	}
+	allo.infos.timeCPUPP = getCPUTime() - initTimeModelCPU;
 	if (allo.infos.timeCPUPP > MAXTIME) {
 		cout << "Preprocessing took over " << MAXTIME << " seconds" << endl;
 		allo.infos.LB  = 0;
@@ -42,7 +43,6 @@ int manlove(Allocation& allo, int mode){
 		}
 		return -1;
 	}
-	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPU;
 
 	// Model
 	try{
