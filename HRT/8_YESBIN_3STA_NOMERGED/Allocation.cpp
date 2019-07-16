@@ -445,6 +445,10 @@ int Allocation::reductionExactDoctor(bool supp) {
 			if ((rank == doctors[i].preferences.size() - 1) && (doctors[i].mustBeAllocated || !supp)) {
 				continue;
 			}
+			if ((getCPUTime() - initTimePP) > MAXTIME) {
+				cout << "Time elapsed, breaking";
+				return 0;
+			}
 			int position = doctors[i].preferences[rank] - 1;
 			auto pos_vert = std::make_pair(1, position);
 			g.addVertex(pos_vert, hospitals[position].cap);
@@ -569,6 +573,10 @@ int Allocation::reductionExactHospital(bool supp) {
 			if ((rank == hospitals[i].preferences.size()- 1) && (hospitals[i].mustBeAllocated || !supp)) {
 				continue;
 			}
+			if ((getCPUTime() - initTimePP) > MAXTIME) {
+				cout << "Time elapsed, breaking";
+				return 0;
+			}
 			for(size_t ind = 0; ind < hospitals[i].preferences[rank].size(); ind++) {
 				int position = hospitals[i].preferences[rank][ind] - 1;
 				auto pos_vert = std::make_pair(1, position);
@@ -683,7 +691,7 @@ void Allocation::reduction(int mode){
 	int nbRed2 = 0;
 	int i = 0;
 	int this_time = 0;
-	auto initTimePP = getCPUTime();
+	initTimePP = getCPUTime();
 	if (mode == 7) {
 		do {
 			this_time = reductionMineHospitals(1);

@@ -84,6 +84,7 @@
 
 		int total_removed;
 		int pp_mode;
+		double initTimePP;
 
 		vector<Doctor> doctors;
 		vector<Hospital> hospitals;
