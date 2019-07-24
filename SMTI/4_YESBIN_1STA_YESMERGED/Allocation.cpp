@@ -605,14 +605,24 @@ void Allocation::reduction(int mode){
 					num = 0;
 					keepGoing = true;
 				}
-				num += reductionExact(true, true);
+				int nextNum = reductionExact(true, true);
+				if (nextNum == -1) {
+					nextNum = 0;
+					keepGoing = true;
+				}
+				num += nextNum;
 			} else if (mode == 10) {
 				num = reductionExact(true, true);
 				if (num == -1) {
 					num = 0;
 					keepGoing = true;
 				}
-				num += reductionExact(false, true);
+				int nextNum = reductionExact(false, true);
+				if (nextNum == -1) {
+					nextNum = 0;
+					keepGoing = true;
+				}
+				num += nextNum;
 			} else if (mode == 13) {
 				num = reductionMine(false, 0, true);
 				num += reductionMine(true, 0, true);
