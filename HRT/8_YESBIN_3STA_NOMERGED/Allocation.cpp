@@ -731,6 +731,7 @@ void Allocation::reduction(int mode){
 				nbRed2 = reductionResApp();
 				i++;
 				this_time = nbRed1 + nbRed2;
+				total_removed += this_time;
 			} else if (mode == 6) {
 				this_time = reductionExactHospital(false);
 				this_time += reductionExactDoctor(false);
