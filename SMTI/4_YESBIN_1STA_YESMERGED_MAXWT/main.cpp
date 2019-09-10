@@ -98,7 +98,7 @@ int manlove(Allocation& allo, int mode){
 							}
 						}
 					}
-					int score = (allo.nbFamilies - j) * (allo.nbChildren - fam_pref);
+					int score = (allo.nbFamilies - j) + (allo.nbChildren - fam_pref);
 					objFun += score*isChildIAllocatedToFamilyJ[i][j][k];
 				}
 			}
