@@ -84,6 +84,20 @@ int manlove(Allocation& allo, int mode){
 
 		model.update();
 
+		for (int i = 0; i < allo.nbChildren; i++){
+			for (int j = 0; j<allo.children[i].nbPref; j++){
+				for(int k=0; k<allo.children[i].preferences[j].size();k++){
+					int idxFam = allo.children[i].preferences[j][k];
+					int idxRank = allo.children[i].ranks[j][k];
+					allocationOfChildI[i] += isChildIAllocatedToFamilyJ[i][j][k];
+					allocationOfFamilyJ[idxFam] += isChildIAllocatedToFamilyJ[i][j][k];
+					for (int l= idxRank; l < allo.families[idxFam].preferences.size(); l++){
+						fillingOfFamilyJUpToRankK[idxFam][l] += isChildIAllocatedToFamilyJ[i][j][k];
+					}
+				}
+			}
+		}
+
 		// Perform values
 		for (int i = 0; i < allo.nbChildren; i++) {
 			for (size_t j = 0; j < allo.children[i].nbPref; ++j) {
