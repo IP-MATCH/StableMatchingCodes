@@ -11,6 +11,6 @@
 
 	float EPSILON = 0.001;
 
-	int manlove(Allocation& allo);
+	int manlove(Allocation& allo, int reduction_mode);
 
 #endif 

@@ -8,28 +8,43 @@ int main(int argc, char **argv){
 	
 	// local variables
 	Allocation allo ;
+	allo.total_removed = 0;
 	string filein = argv[2];
 	string path = argv[1];
 	string pathAndFileout = argv[3];
+	int mode = atoi(argv[4]);
 
 	// functions
 	allo.load(path,filein);
-	allo.printProb();
+	//allo.printProb();
+	allo.pp_mode = mode;
 
-	manlove(allo);
-
-	allo.printSol();
-	allo.checkSolution();
-	allo.printInfo(pathAndFileout);
+	if (manlove(allo, mode) >= 0) {
+    allo.printSol();
+    allo.checkSolution();
+  }
+  allo.printInfo(pathAndFileout);
 }
 
-int manlove(Allocation& allo){
+int manlove(Allocation& allo, int mode){
 	double initTimeModelCPU = getCPUTime();
 	GRBEnv env = GRBEnv();
 
-	allo.reduction();
-	allo.printProb();
-	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPU;
+	if (mode != 12) {
+		allo.reduction(mode);
+	}
+	allo.infos.timeCPUPP = getCPUTime() - initTimeModelCPU;
+	if (allo.infos.timeCPUPP > MAXTIME) {
+		cout << "Preprocessing took over " << MAXTIME << " seconds" << endl;
+		allo.infos.LB  = 0;
+		allo.infos.timeCPU = MAXTIME;
+		allo.assignmentByDoctor.resize(allo.nbDoctors, -1);
+		allo.assignmentByHospital.resize(allo.nbHospitals);
+		for(int i = 0; i < allo.nbHospitals; ++i) {
+			allo.assignmentByHospital[i].resize(allo.hospitals[i].cap, -1);
+		}
+		return -1;
+	}
 
 	// Model
 	try{
@@ -141,7 +156,7 @@ int manlove(Allocation& allo){
 		}
 				
 		// Setting of Gurobi
-		model.getEnv().set(GRB_DoubleParam_TimeLimit,  3600 - (getCPUTime() - initTimeModelCPU));
+		model.getEnv().set(GRB_DoubleParam_TimeLimit,  MAXTIME - (getCPUTime() - initTimeModelCPU));
 		model.getEnv().set(GRB_IntParam_Threads, 1);
 		model.getEnv().set(GRB_DoubleParam_MIPGap, 0);
 
@@ -207,9 +222,9 @@ int manlove(Allocation& allo){
 		cout << "Error code = " << e.getErrorCode() << endl;
 		cout << e.getMessage() << endl;
 	}
-	catch (...) {
-		cout << "Exception during optimization" << endl;
-	}
+//	catch (...) {
+//		cout << "Exception during optimization" << endl;
+//	}
 
 
 	// End

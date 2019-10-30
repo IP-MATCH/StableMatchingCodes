@@ -1,5 +1,7 @@
 #include "main.h"
 
+#define MAXTIME 3600
+
 /*	*************************************************************************************
 	*************************************  MAIN *****************************************
 	************************************************************************************* */
@@ -12,27 +14,38 @@ int main(int argc, char **argv){
 	string path = argv[1];
 	string pathAndFileout = argv[3];
 	int minGrade = atoi(argv[4]);
+	int mode = atoi(argv[5]);
 
 	// functions
 	allo.load(path,filein,minGrade);
-	allo.printProb();
+	//allo.printProb();
 
-	manlove(allo);
-	
-	allo.printSol();
-	allo.checkSolution();
+	int res = manlove(allo, mode);
+	if (res != -1) {
+		allo.printSol();
+		allo.checkSolution();
+	}
 	allo.printInfo(pathAndFileout);
 }
 
 
-int manlove(Allocation& allo){
+int manlove(Allocation& allo, int mode){
 	double initTimeModelCPU = getCPUTime();
 	GRBEnv env = GRBEnv();
 
 	double initTimeModelCPUPP = getCPUTime();
-	allo.reduction();
-	allo.printProb();
+	if (mode != 12) {
+		allo.reduction(mode);
+	}
+	//allo.printProb();
 	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPUPP;
+	if (allo.infos.timeCPUPP > MAXTIME) {
+		cout << "Preprocessing took over " << MAXTIME << " seconds" << endl;
+		allo.infos.LB  = 0;
+		allo.assignmentByChild.resize(allo.nbChildren, -1);
+		allo.assignmentByFamily.resize(allo.nbFamilies,-1);
+		return -1;
+	}
 
 	// Model
 	try{
@@ -140,7 +153,7 @@ int manlove(Allocation& allo){
 		}
 		
 		// Setting of Gurobi
-		model.getEnv().set(GRB_DoubleParam_TimeLimit, 3600 - (getCPUTime() - initTimeModelCPU));
+		model.getEnv().set(GRB_DoubleParam_TimeLimit, MAXTIME - (getCPUTime() - initTimeModelCPU));
 		model.getEnv().set(GRB_IntParam_Threads, 1);
 		model.getEnv().set(GRB_DoubleParam_MIPGap, 0);
 		model.optimize();
