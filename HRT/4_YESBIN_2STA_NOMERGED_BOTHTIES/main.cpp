@@ -11,24 +11,27 @@ int main(int argc, char **argv){
 	string filein = argv[2];
 	string path = argv[1];
 	string pathAndFileout = argv[3];
+	int mode = atoi(argv[4]);
 
 	// functions
 	allo.load(path,filein);
 	allo.printProb();
 
-	manlove(allo);
+	manlove(allo, mode);
 
 	allo.printSol();
 	allo.checkSolution();
 	allo.printInfo(pathAndFileout);
 }
 
-int manlove(Allocation& allo){
+int manlove(Allocation& allo, int mode){
 	double initTimeModelCPU = getCPUTime();
 	GRBEnv env = GRBEnv();
 
-	allo.reduction();
-	allo.printProb();
+	if (mode != 12) {
+		allo.reduction(mode);
+		allo.printProb();
+	}
 	allo.infos.timeCPUPP =  getCPUTime() - initTimeModelCPU;
 
 	// Model
@@ -85,9 +88,9 @@ int manlove(Allocation& allo){
 		for (int j = 0; j < allo.nbHospitals; j++){
 			for (int k = 0; k<allo.hospitals[j].nbPref; k++){
 				GRBLinExpr exp = 0;
-				for(int l=0; l<allo.hospitals[j].preferences[k].size();l++){
+				for(size_t l=0; l<allo.hospitals[j].preferences[k].size();l++){
 					int idxDoc = allo.hospitals[j].preferences[k][l]-1;
-					for(int m=0; m < allo.doctors[idxDoc].preferences.size();m++){								
+					for(size_t m=0; m < allo.doctors[idxDoc].preferences.size();m++){								
 						if(allo.doctors[idxDoc].preferences[m]-1 == j){
 							exp += isDoctorIAllocatedToHospitalJ[idxDoc][m];
 						}
@@ -107,7 +110,7 @@ int manlove(Allocation& allo){
 
 		// Increasing rank constraints 
 		for (int j = 0; j < allo.nbHospitals; j++){
-			for(int k=0; k<allo.hospitals[j].preferences.size(); k++){
+			for(size_t k=0; k<allo.hospitals[j].preferences.size(); k++){
 				model.addConstr(isHospitalJFullAtRankK[j][k] <= isHospitalJFullAtRankK[j][k+1]);
 			}
 		}
@@ -119,11 +122,11 @@ int manlove(Allocation& allo){
 
 		// Constraint about opening a new rank
 		for (int j = 0; j < allo.nbHospitals; j++){
-			for(int k=0; k<allo.hospitals[j].preferences.size(); k++){
-				for(int i=0; i<allo.hospitals[j].preferences[k].size();i++){
+			for(size_t k=0; k<allo.hospitals[j].preferences.size(); k++){
+				for(size_t i=0; i<allo.hospitals[j].preferences[k].size();i++){
 					int idxDoc = allo.hospitals[j].preferences[k][i]-1;
 					int idxRank = -1;
-					for(int m=0; m < allo.doctors[idxDoc].preferences.size();m++){								
+					for(size_t m=0; m < allo.doctors[idxDoc].preferences.size();m++){								
 						if(allo.doctors[idxDoc].preferences[m]-1 == j){
 							idxRank = m;
 						}
