@@ -2,14 +2,16 @@
 #include <iostream>
 #include "Graph.h"
 
+constexpr decltype(Graph::SOURCE) Graph::SOURCE;
+constexpr decltype(Graph::SINK) Graph::SINK;
 
 Graph::Graph(int cap_original) : _cap_original(cap_original), _cap_total(0),
   _left_total(0), max_flow(0) {
 #ifdef DEBUG_GRAPH
   std::cout << "New graph" << std::endl; 
 #endif /* DEBUG_GRAPH */
-  this->addVertex(std::make_pair(2, 0), 1); // SOURCE
-  this->addVertex(std::make_pair(2, 1), 1); // SINK
+  this->addVertex(std::make_pair(2, Graph::SOURCE), 1); // SOURCE
+  this->addVertex(std::make_pair(2, Graph::SINK), 1); // SINK
 }
 
 void Graph::addVertex(Vertex name, int capacity) {

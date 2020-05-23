@@ -23,13 +23,14 @@
 	public:
 		int id;
 		int nbPref;
-		vector<int> preferences;
-		vector<int> ranks;
+		int nbTotPref;
 		bool mustBeAllocated;
+		vector<vector<int> > preferences;
+		vector<vector<int> > ranks;
 
 		void print();
 
-		Doctor() : mustBeAllocated(false) { }
+		Doctor() : nbTotPref(0), mustBeAllocated(false) { }
 	};
 
 /*	*************************************************************************************
@@ -44,6 +45,7 @@
 		int nbTotPref;
 		bool mustBeAllocated;
 		vector<vector<int> > preferences;
+		vector<vector<int> > ranks;
 
 		void print();
 

@@ -54,14 +54,6 @@ const std::set<int> & AgentIteratorBase<t_these, t_other>::get_candidates() cons
 	return _candidates;
 }
 
-template <>
-void AgentIteratorBase<Doctor, Hospital>::regularIncrement() {
-	_group++;
-	if ((int)_agent.preferences.size() == _group) {
-		_group = -1;
-	}
-}
-
 template <typename t_these, typename t_other>
 void AgentIteratorBase<t_these, t_other>::regularIncrement() {
 	_position++;
@@ -242,7 +234,7 @@ void SkipBigIterator<Doctor,Hospital>::begin() {
 			break;
 		}
 		num_added = 0;
-		int other_id = this->_agent.preferences[this->_group];
+		int other_id = this->_agent.preferences[this->_group][this->_position];
 		bool break_yet = false;
 		for(auto & group: this->_other[other_id-1].preferences) {
 			for(auto pref: group) {
@@ -274,11 +266,17 @@ void SkipBigIterator<Hospital,Doctor>::begin() {
 		}
 		num_added = 0;
 		int other_id = this->_agent.preferences[this->_group][this->_position];
-		for(auto pref: this->_other[other_id-1].preferences) {
-			if (this->_candidates.count(pref) == 0) {
-				num_added++;
+		bool break_yet = false;
+		for(auto & group: this->_other[other_id-1].preferences) {
+			for(auto pref: group) {
+				if (this->_candidates.count(pref) == 0) {
+					num_added++;
+				}
+				if (pref == this->_agent.id) {
+					break_yet = true;
+				}
 			}
-			if (pref == this->_agent.id) {
+			if (break_yet) {
 				break;
 			}
 		}
@@ -332,11 +330,17 @@ void SkipBigIterator<Hospital, Doctor>::increment() {
 		}
 		num_added = 0;
 		int other_id = this->_agent.preferences[this->_group][this->_position];
-		for(auto pref: _other[other_id-1].preferences) {
-			if (this->_candidates.count(pref) == 0) {
-				num_added++;
+		bool break_yet = false;
+		for(auto & group: _other[other_id-1].preferences) {
+			for(auto pref: group) {
+				if (this->_candidates.count(pref) == 0) {
+					num_added++;
+				}
+				if (pref == _agent.id) {
+					break_yet = true;
+				}
 			}
-			if (pref == this->_agent.id) {
+			if (break_yet) {
 				break;
 			}
 		}
@@ -352,7 +356,7 @@ void SkipBigIterator<Doctor, Hospital>::increment() {
 			break;
 		}
 		num_added = 0;
-		int other_id = this->_agent.preferences[this->_group];
+		int other_id = this->_agent.preferences[this->_group][this->_position];
 		bool break_yet = false;
 		for(auto & group: _other[other_id-1].preferences) {
 			for(auto pref: group) {
@@ -411,11 +415,17 @@ void BestIterator<Hospital,Doctor>::increment() {
 				continue;
 			}
 			int num_added = 0;
-			for(auto other_pref: this->_other[other_id-1].preferences) {
-				if (this->_candidates.count(other_pref) == 0) {
-					num_added++;
+			bool break_yet = false;
+			for(auto & group: this->_other[other_id-1].preferences) {
+				for(auto other_pref: group) {
+					if (this->_candidates.count(other_pref) == 0) {
+						num_added++;
+					}
+					if (other_pref == this->_agent.id) {
+						break_yet = true;
+					}
 				}
-				if (other_pref == this->_agent.id) {
+				if (break_yet) {
 					break;
 				}
 			}
@@ -440,30 +450,33 @@ void BestIterator<Doctor, Hospital>::increment() {
 	int lowest_added = -1;
 	int best_group = -1;
 	int best_posn = -1;
-	for(size_t posn = 0; posn < this->_agent.preferences.size(); ++posn) {
-		int other_id = this->_agent.preferences[posn];
-		if (this->_positions.count(other_id) != 0) {
-			continue;
-		}
-		int num_added = 0;
-		bool break_yet = false;
-		for(auto & group: this->_other[other_id-1].preferences) {
-			for(auto other_pref: group) {
-				if (this->_candidates.count(other_pref) == 0) {
-					num_added++;
-				}
-				if (other_pref == this->_agent.id) {
-					break_yet = true;
-				}
-				if (break_yet) {
-					break;
+	for(size_t group_no = 0; group_no < this->_agent.preferences.size(); ++group_no) {
+		auto & group = this->_agent.preferences[group_no];
+		for(size_t posn = 0; posn < group.size(); ++posn) {
+			int other_id = group[posn];
+			if (this->_positions.count(other_id) != 0) {
+				continue;
+			}
+			int num_added = 0;
+			bool break_yet = false;
+			for(auto & group: this->_other[other_id-1].preferences) {
+				for(auto other_pref: group) {
+					if (this->_candidates.count(other_pref) == 0) {
+						num_added++;
+					}
+					if (other_pref == this->_agent.id) {
+						break_yet = true;
+					}
+					if (break_yet) {
+						break;
+					}
 				}
 			}
-		}
-		if ((lowest_added == -1) || (num_added < lowest_added)) {
-			lowest_added = num_added;
-			best_group = posn;
-			best_posn = 0;
+			if ((lowest_added == -1) || (num_added < lowest_added)) {
+				lowest_added = num_added;
+				best_group = posn;
+				best_posn = 0;
+			}
 		}
 	}
 	if (lowest_added != -1) {
@@ -518,7 +531,7 @@ void BestIterator<Doctor,Hospital>::begin() {
 	int best_group = -1;
 	int best_posn = -1;
 	for(size_t group_no = 0; group_no < this->_agent.preferences.size(); ++group_no) {
-		auto & group = this->_agent.preferences;
+		auto & group = this->_agent.preferences[group_no];
 		for(size_t posn = 0; posn < group.size(); ++posn) {
 			int other_id = group[posn];
 			if (this->_positions.count(other_id) != 0) {
@@ -568,11 +581,17 @@ void BestIterator<Hospital,Doctor>::begin() {
 				continue;
 			}
 			int num_added = 0;
-			for(auto other_pref: this->_other[other_id-1].preferences) {
-				if (this->_candidates.count(other_pref) == 0) {
-					num_added++;
+			bool break_yet = false;
+			for(size_t group_ind = 0; group_ind < this->_other[other_id-1].preferences.size(); group_ind++) {
+				for(auto other_pref: this->_other[other_id-1].preferences[group_ind]) {
+					if (this->_candidates.count(other_pref) == 0) {
+						num_added++;
+					}
+					if (other_pref == this->_agent.id) {
+						break_yet = true;
+					}
 				}
-				if (other_pref == other_id) {
+				if (break_yet) {
 					break;
 				}
 			}
@@ -638,11 +657,40 @@ BestGroupIterator<t_these, t_other>::BestGroupIterator(const t_these & agent, co
 
 template <>
 void BestGroupIterator<Doctor,Hospital>::increment() {
-	this->_position = 0;
-	this->_group++;
-	if (this->_group == (int)this->_agent.preferences.size()) {
-		this->_position = 0;
-		this->_group = -1;
+	int lowest_added = -1;
+	int best_posn = -1;
+	const std::vector<int> & group = this->_agent.preferences[this->_group];
+	for(size_t posn = 0; posn < group.size(); ++posn) {
+		int other_id = group[posn];
+		if (this->_positions.count(other_id) != 0) {
+			continue;
+		}
+		int num_added = 0;
+		for(auto & other_group: this->_other[other_id-1].preferences) {
+			for(auto other_pref: other_group) {
+				if (this->_candidates.count(other_pref) == 0) {
+					num_added++;
+				}
+				if (other_pref == this->_agent.id) {
+					break;
+				}
+			}
+			if ((lowest_added == -1) || (num_added < lowest_added)) {
+				lowest_added = num_added;
+				best_posn = posn;
+			}
+		}
+	}
+	if (lowest_added != -1) {
+		this->_position = best_posn;
+	} else {
+		this->_group++;
+		if (this->_group == (int)this->_agent.preferences.size()) {
+			this->_position = 0;
+			this->_group = -1;
+		} else {
+			increment();
+		}
 	}
 }
 
@@ -657,12 +705,14 @@ void BestGroupIterator<Hospital,Doctor>::increment() {
 			continue;
 		}
 		int num_added = 0;
-		for(auto other_pref: this->_other[other_id-1].preferences) {
-			if (this->_candidates.count(other_pref) == 0) {
-				num_added++;
-			}
-			if (other_pref == this->_agent.id) {
-				break;
+		for(auto & other_group: this->_other[other_id-1].preferences) {
+			for(auto other_pref: other_group) {
+				if (this->_candidates.count(other_pref) == 0) {
+					num_added++;
+				}
+				if (other_pref == this->_agent.id) {
+					break;
+				}
 			}
 		}
 		if ((lowest_added == -1) || (num_added < lowest_added)) {
@@ -734,11 +784,17 @@ void BestGroupIterator<Hospital, Doctor>::begin() {
 			continue;
 		}
 		int num_added = 0;
-		for(auto other_pref: this->_other[other_id-1].preferences) {
-			if (this->_candidates.count(other_pref) == 0) {
-				num_added++;
+		bool break_yet = false;
+		for(size_t group_ind = 0; group_ind < this->_other[other_id-1].preferences.size(); group_ind++) {
+			for(auto other_pref: this->_other[other_id-1].preferences[group_ind]) {
+				if (this->_candidates.count(other_pref) == 0) {
+					num_added++;
+				}
+				if (other_pref == this->_agent.id) {
+					break_yet = true;
+				}
 			}
-			if (other_pref == this->_agent.id) {
+			if (break_yet) {
 				break;
 			}
 		}
@@ -767,8 +823,9 @@ void BestGroupIterator<Doctor, Hospital>::begin() {
 	if (this->_group == -1) {
 		return;
 	}
-	for(size_t posn = 0; posn < this->_agent.preferences.size(); ++posn) {
-		int other_id = this->_agent.preferences[posn];
+	auto & group = this->_agent.preferences[this->_group];
+	for(size_t posn = 0; posn < group.size(); ++posn) {
+		int other_id = group[posn];
 		if (this->_positions.count(other_id) != 0) {
 			continue;
 		}

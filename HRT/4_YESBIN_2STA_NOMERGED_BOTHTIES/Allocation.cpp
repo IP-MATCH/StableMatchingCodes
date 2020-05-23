@@ -10,8 +10,15 @@
 	************************************************************************************* */
 
 void Doctor::print(){
-	cout << "Doctor " << id << "\t Preferences (" << nbPref << ") hospital [ranks] \t";
-	for(int i=0; i<nbPref; i++) cout << preferences[i] << " [" << ranks[i] << "]\t" ;
+	cout << "Doctor " << id << "\t Preferences (" << nbPref << " groups, " << nbTotPref << " in total)\t";
+	for(int i=0; i<nbPref; i++){
+		cout << "(";
+			for(size_t j=0; j<preferences[i].size(); j++){
+				if(j > 0) cout << " ";
+				cout << preferences[i][j];
+			}
+			cout << ") "; 
+	}
 	cout << endl;
 }
 
@@ -64,18 +71,49 @@ void Allocation::load(const string& path, const string& filein){
 		for (int i = 0; i < nbDoctors; i++){
 			Doctor d;
 			int temp;
+			istringstream tempIss;
+			string tempString;
 
 			d.nbPref = 0;
 			
 			getline(file, parser);
 			iss.str(parser);
 			iss >> d.id;
-			while(iss >> temp){
-				d.preferences.push_back(temp);
-				d.ranks.push_back(-1);
-				d.nbPref++;
+			int rank = 1;
+			for(;;){
+				char tempChar = iss.get();
+				if(iss.eof()) 
+					break;
+				else{
+					if(tempChar == '('){
+						getline(iss, tempString, ')');
+						tempIss.str(tempString);
+						vector<int> tempPref;
+						while(tempIss >> temp){
+							tempPref.push_back(temp);
+						}
+						d.ranks.emplace_back(tempPref.size());
+						d.preferences.push_back(tempPref);
+						d.nbTotPref+= tempPref.size();
+						tempIss.clear();
+					}
+					else{
+						if((tempChar >= '0') && (tempChar <= '9')){
+							iss.putback(tempChar);
+							vector<int> tempPref;
+							iss >> temp;
+							tempPref.push_back(temp);
+							d.ranks.emplace_back(tempPref.size());
+							d.preferences.push_back(tempPref);
+							d.nbTotPref+= tempPref.size();
+							tempIss.clear();
+						}
+					}
+					rank += 1;
+				}
 			}
-			doctors.push_back(d);	
+			d.nbPref = d.preferences.size();
+			doctors.push_back(d);
 			iss.clear();
 		}
 
@@ -108,8 +146,10 @@ void Allocation::load(const string& path, const string& filein){
 						while(tempIss >> temp){
 							tempPref.push_back(temp);
 							for(int j=0; j<doctors[temp-1].nbPref; j++){
-								if(doctors[temp-1].preferences[j] == i+1)
-									doctors[temp-1].ranks[j] = currRank;
+								for(size_t id = 0; id < doctors[temp-1].preferences[j].size(); ++id) {
+									if(doctors[temp-1].preferences[j][id] == i+1)
+										doctors[temp-1].ranks[j][id] = currRank;
+								}
 							}
 						}
 						h.preferences.push_back(tempPref);
@@ -124,8 +164,10 @@ void Allocation::load(const string& path, const string& filein){
 							iss >> temp;
 							tempPref.push_back(temp);
 							for(int j=0; j<doctors[temp-1].nbPref; j++){
-								if(doctors[temp-1].preferences[j] == i+1)
-									doctors[temp-1].ranks[j] = currRank;
+								for(size_t id = 0; id < doctors[temp-1].preferences[j].size(); ++id) {
+									if(doctors[temp-1].preferences[j][id] == i+1)
+										doctors[temp-1].ranks[j][id] = currRank;
+								}
 							}
 							h.preferences.push_back(tempPref);
 							currRank++;
@@ -156,59 +198,6 @@ void Allocation::printProb(){
 	}
 }
 
-int Allocation::reductionHosOff(){
-	
-	int nbTotRem = 0;
-	vector<int> remainingCap (nbHospitals); 
-	vector<int> currentAssignmentByDoctor (nbDoctors,-1);
-	vector<int> maxRank (nbHospitals,-1);
-	bool hbm = true;
-
-	for(int j=0; j<nbHospitals;j++){
-		remainingCap[j] = hospitals[j].cap;
-	}
-	
-	// Loop - doctor assigned to hospital index in the table, not hospital id
-
-	while(hbm){
-		hbm = false;
-		for(int j=0; j<nbHospitals;j++){
-			for(int k=maxRank[j]+1; k<hospitals[j].nbPref; k++){
-				if(remainingCap[j] < (int)hospitals[j].preferences[k].size()) break;
-				hbm = true;
-				maxRank[j]++;
-
-				for(size_t i=0; i< hospitals[j].preferences[k].size();i++){
-					int idxDoc = hospitals[j].preferences[k][i] - 1;
-					if(currentAssignmentByDoctor[idxDoc] != -1) remainingCap[currentAssignmentByDoctor[idxDoc]]++ ;
-					currentAssignmentByDoctor[idxDoc] = j;
-
-					// Remove hospital after j from doctor preferences
-					for(int l=0; l<doctors[idxDoc].nbPref; l++){
-						if(doctors[idxDoc].preferences[l]-1 == j){
-							for(int m=l+1 ; m<doctors[idxDoc].nbPref; m++){
-								int idxHos = doctors[idxDoc].preferences[m]-1;
-								for(size_t n=0; n<hospitals[idxHos].preferences[doctors[idxDoc].ranks[m]-1].size();n++){								
-									if(hospitals[idxHos].preferences[doctors[idxDoc].ranks[m]-1][n]-1 == idxDoc){
-										hospitals[idxHos].preferences[doctors[idxDoc].ranks[m]-1].erase(hospitals[idxHos].preferences[doctors[idxDoc].ranks[m]-1].begin() + n); 
-										hospitals[idxHos].nbTotPref--;
-										nbTotRem++;
-									}
-								}
-							}
-							doctors[idxDoc].nbPref = l+1;
-							doctors[idxDoc].preferences.resize(l+1);
-							doctors[idxDoc].ranks.resize(l+1);
-						}
-					}
-				}
-				remainingCap[j] -= hospitals[j].preferences[k].size();
-			}
-		}
-	}
-	
-	return nbTotRem;
-}
 
 int Allocation::reductionMineDoctors(int mode) {
 	int nbTotRem = 0;
@@ -224,7 +213,7 @@ int Allocation::reductionMineDoctors(int mode) {
 			if (j > worst_rank) {
 				worst_rank = j;
 			}
-			int idxHos = doctors[i].preferences[j] - 1;
+			int idxHos = doctors[i].preferences[j][p.second] - 1;
 			positions.insert(idxHos+1);
 			count += hospitals[idxHos].cap;
 			for (auto & group: hospitals[idxHos].preferences) {
@@ -245,16 +234,18 @@ int Allocation::reductionMineDoctors(int mode) {
 				int remHere = 0;
 #endif /* DEBUG */
 				for (int k = worst_rank + 1; k < doctors[i].nbPref; k++) {
-					nbTotRem += 1;
+					for (size_t id = 0; id < doctors[i].preferences[k].size(); ++id) {
+						nbTotRem += 1;
 #ifdef DEBUG
-					remHere += 1;
+						remHere += 1;
 #endif /* DEBUG */
-					int idxHos = doctors[i].preferences[k] - 1;
-					for(size_t rank = 0; rank < hospitals[idxHos].preferences.size(); ++rank) {
-						auto posDoc = std::find(hospitals[idxHos].preferences[rank].begin(), hospitals[idxHos].preferences[rank].end(), i+1);
-						if (posDoc != hospitals[idxHos].preferences[rank].end()) {
-							hospitals[idxHos].preferences[rank].erase(posDoc);
-							hospitals[idxHos].nbTotPref--;
+						int idxHos = doctors[i].preferences[k][id] - 1;
+						for(size_t rank = 0; rank < hospitals[idxHos].preferences.size(); ++rank) {
+							auto posDoc = std::find(hospitals[idxHos].preferences[rank].begin(), hospitals[idxHos].preferences[rank].end(), i+1);
+							if (posDoc != hospitals[idxHos].preferences[rank].end()) {
+								hospitals[idxHos].preferences[rank].erase(posDoc);
+								hospitals[idxHos].nbTotPref--;
+							}
 						}
 					}
 				}
@@ -295,13 +286,15 @@ int Allocation::reductionMineHospitals(int mode) {
 			int idxDoc = hospitals[i].preferences[j][k] - 1;
 			positions.insert(idxDoc+1);
 			count += 1;
-			for (int pref: doctors[idxDoc].preferences) {
-				if (candidates.count(pref) == 0) {
-					candidates.insert(pref);
-					candidate_cap += hospitals[pref-1].cap;
-				}
-				if (pref == hospitals[i].id) {
-					break;
+			for(const auto & group: doctors[idxDoc].preferences) {
+				for (int pref: group) {
+					if (candidates.count(pref) == 0) {
+						candidates.insert(pref);
+						candidate_cap += hospitals[pref-1].cap;
+					}
+					if (pref == hospitals[i].id) {
+						break;
+					}
 				}
 			}
 			if (count >= candidate_cap) {
@@ -317,12 +310,16 @@ int Allocation::reductionMineHospitals(int mode) {
 					hospitals[i].nbTotPref -= hospitals[i].preferences[k].size();
 					for (unsigned int l = 0; l < hospitals[i].preferences[k].size(); l++) {
 						int idxDoc = hospitals[i].preferences[k][l] - 1;
-						for (size_t m = 0 ; m < doctors[idxDoc].preferences.size(); ++m) {
-							if (doctors[idxDoc].preferences[m] == i + 1) {
-								doctors[idxDoc].preferences.erase(doctors[idxDoc].preferences.begin() + m);
-								doctors[idxDoc].ranks.erase(doctors[idxDoc].ranks.begin() + m);
-								doctors[idxDoc].nbPref--;
-								break;
+						bool break_now = false;
+						for (size_t m = 0 ; (!break_now) && m < doctors[idxDoc].preferences.size(); ++m) {
+							for (size_t id = 0; id < doctors[idxDoc].preferences[m].size(); ++id) {
+								if (doctors[idxDoc].preferences[m][id] == i + 1) {
+									doctors[idxDoc].preferences[m].erase(doctors[idxDoc].preferences[m].begin() + id);
+									doctors[idxDoc].ranks[m].erase(doctors[idxDoc].ranks[m].begin() + id);
+									doctors[idxDoc].nbPref--;
+									break_now = true;
+									break;
+								}
 							}
 						}
 					}
@@ -343,67 +340,6 @@ int Allocation::reductionMineHospitals(int mode) {
 }
 
 
-int Allocation::reductionResApp(){
-
-	int nbTotRem = 0;
-	vector<int> capacityUsed (nbHospitals, 0); 
-	vector<vector<vector<int> > > currentAssignmentByHospital (nbHospitals);
-	vector<int> currentAssignmentByDoctor (nbDoctors,-1);
-	vector<int> maxRank (nbHospitals,-1);
-	bool hbm = true;
-
-	for(int j=0; j<nbHospitals;j++)
-		currentAssignmentByHospital[j].resize(hospitals[j].nbPref);
-	
-	// Loop - doctor assigned to hospital index in the table, not hospital id
-
-	while(hbm){
-		hbm = false;
-		for(int i=0; i<nbDoctors;i++){
-			if(currentAssignmentByDoctor[i] == -1 && doctors[i].preferences.size() > 0){
-				hbm = true;
-				int idxHos = doctors[i].preferences[0]-1;
-				currentAssignmentByDoctor[i] = idxHos;
-				currentAssignmentByHospital[idxHos][doctors[i].ranks[0]-1].push_back(i);
-				capacityUsed[idxHos]++;
-				if(capacityUsed[idxHos] >= hospitals[idxHos].cap){
-					int count = 0;
-					for(int k=0;k<hospitals[idxHos].nbPref;k++){
-						count += currentAssignmentByHospital[idxHos][k].size();
-						if(count >= hospitals[idxHos].cap){
-              std::cout << "Remove from h"<< (idxHos+1) << " at d" << (i+1) << std::endl;
-							for(int l = k+1; l<hospitals[idxHos].nbPref;l++){
-								for(size_t m=0; m<currentAssignmentByHospital[idxHos][l].size();m++){
-									currentAssignmentByDoctor[currentAssignmentByHospital[idxHos][l][m]] = -1;
-									capacityUsed[idxHos]--;
-								}
-								for(size_t m=0; m<hospitals[idxHos].preferences[l].size();m++){
-									int idxDoc = hospitals[idxHos].preferences[l][m] - 1;
-									for(size_t n=0; n < doctors[idxDoc].preferences.size();n++){								
-										if(doctors[idxDoc].preferences[n]-1 == idxHos){
-											doctors[idxDoc].preferences.erase(doctors[idxDoc].preferences.begin() + n); 
-											doctors[idxDoc].ranks.erase(doctors[idxDoc].ranks.begin() + n); 
-											doctors[idxDoc].nbPref--;
-											nbTotRem++;
-                      std::cout << "Removed d" <<(idxDoc+1) << " h" << (idxHos+1) << std::endl;
-										}
-									}
-								}
-								hospitals[idxHos].nbTotPref -= 	hospitals[idxHos].preferences[l].size()	;
-							}
-              std::cout << "nbTotRem = "<< nbTotRem << std::endl;
-							hospitals[idxHos].nbPref = k+1;
-							hospitals[idxHos].preferences.resize(k+1);
-							currentAssignmentByHospital[idxHos].resize(k+1);
-						}
-					}
-				}
-			}
-		}
-	}
-
-	return nbTotRem;
-}
 
 /**
  * Reduce on the doctor's preference lists, removing hospitals.
@@ -448,83 +384,87 @@ int Allocation::reductionExactDoctor(bool supp) {
 			if ((rank == doctors[i].preferences.size() - 1) && (doctors[i].mustBeAllocated || !supp)) {
 				continue;
 			}
-			if ((getCPUTime() - initTimePP) > MAXTIME) {
-				cout << "Time elapsed, breaking";
-				return 0;
-			}
-			int position = doctors[i].preferences[rank] - 1;
-			auto pos_vert = std::make_pair(1, position);
-			g.addVertex(pos_vert, hospitals[position].cap);
-			bool break_yet = false;
-			for(size_t k = 0; k < hospitals[position].preferences.size(); ++k) {
-				for(size_t l = 0; l < hospitals[position].preferences[k].size(); ++l) {
-					int doctor_cand = hospitals[position].preferences[k][l] - 1;
-					if (doctor_cand == i) { // Don't add the current candidate to the graph
-						// Don't add doctors after this rank.
-						break_yet = true;
-						continue;
+			for(size_t id = 0; id < doctors[i].preferences[rank].size(); ++id) {
+				if ((getCPUTime() - initTimePP) > MAXTIME) {
+					cout << "Time elapsed, breaking";
+					return 0;
+				}
+				int position = doctors[i].preferences[rank][id] - 1;
+				auto pos_vert = std::make_pair(1, position);
+				g.addVertex(pos_vert, hospitals[position].cap);
+				bool break_yet = false;
+				for(size_t k = 0; k < hospitals[position].preferences.size(); ++k) {
+					for(size_t l = 0; l < hospitals[position].preferences[k].size(); ++l) {
+						int doctor_cand = hospitals[position].preferences[k][l] - 1;
+						if (doctor_cand == i) { // Don't add the current candidate to the graph
+							// Don't add doctors after this rank.
+							break_yet = true;
+							continue;
+						}
+						std::pair<int,int> doctor_cand_vert = std::make_pair(0, doctor_cand);
+						if (! g.containsVertex(doctor_cand_vert)) {
+							g.addVertex(doctor_cand_vert, 1);
+						}
+						g.addEdge(pos_vert, doctor_cand_vert);
 					}
-					std::pair<int,int> doctor_cand_vert = std::make_pair(0, doctor_cand);
-					if (! g.containsVertex(doctor_cand_vert)) {
-						g.addVertex(doctor_cand_vert, 1);
+					if (break_yet) {
+						break;
 					}
-					g.addEdge(pos_vert, doctor_cand_vert);
 				}
-				if (break_yet) {
-					break;
+				// max_flow is <= min(g.cap_left(), g.cap_right()), so we can do simple
+				// checks which might mean we can not bother trying to augment
+				bool can_def_preprocess = 1 + 2*g.cap_left() <= g.cap_total();
+				if (1 + g.cap_left() + g.cap_right() <= g.cap_total()) {
+					can_def_preprocess = true;
 				}
-			}
-			// max_flow is <= min(g.cap_left(), g.cap_right()), so we can do simple
-			// checks which might mean we can not bother trying to augment
-			bool can_def_preprocess = 1 + 2*g.cap_left() <= g.cap_total();
-			if (1 + g.cap_left() + g.cap_right() <= g.cap_total()) {
-				can_def_preprocess = true;
-			}
-			if (!can_def_preprocess) {
-				while (g.augment()) {
-					// Empty loop on purpose, we keep augmenting while we can keep
-					// augmenting.
+				if (!can_def_preprocess) {
+					while (g.augment()) {
+						// Empty loop on purpose, we keep augmenting while we can keep
+						// augmenting.
+					}
 				}
-			}
-			if (can_def_preprocess || g.can_preprocess()) {
-				// preprocess on rank!
-				// Firstly, they must be allocated, so mark as such (if we're in that
-				// mode)
-				if (supp && !doctors[i].mustBeAllocated) {
-					doctorsMustBeAllocated.push_back(i);
-					doctors[i].mustBeAllocated = true;
-					newMustBeAllocated = true;
-				}
+				if (can_def_preprocess || g.can_preprocess()) {
+					// preprocess on rank!
+					// Firstly, they must be allocated, so mark as such (if we're in that
+					// mode)
+					if (supp && !doctors[i].mustBeAllocated) {
+						doctorsMustBeAllocated.push_back(i);
+						doctors[i].mustBeAllocated = true;
+						newMustBeAllocated = true;
+					}
 #ifdef DEBUG
-				if (i == 6) {
-					//std::cout << "g.size() = " << g.size() << ", g.matchingSize() = " << g.matchingSize();
-					//std::cout << ", n_1 = " << n_1 << std::endl;
-					//g.printGraph();
-					//g.printMatching();
-				}
-				std::cout << "doctor worst rank of " << i << " is " << rank << " ";
-				int remHere = 0;
+					if (i == 6) {
+						//std::cout << "g.size() = " << g.size() << ", g.matchingSize() = " << g.matchingSize();
+						//std::cout << ", n_1 = " << n_1 << std::endl;
+						//g.printGraph();
+						//g.printMatching();
+					}
+					std::cout << "doctor worst rank of " << i << " is " << rank << " ";
+					int remHere = 0;
 #endif /* DEBUG */
-				for (int k = rank + 1; k < doctors[i].nbPref; k++) {
-					nbTotRem += 1;
+					for (int k = rank + 1; k < doctors[i].nbPref; k++) {
+						for (size_t id = 0; id < doctors[i].preferences[k].size(); ++id) {
+							nbTotRem += 1;
 #ifdef DEBUG
-					remHere += 1;
+							remHere += 1;
 #endif /* DEBUG */
-					int idxHos = doctors[i].preferences[k] - 1;
-					// remove from idxHos any reference to i.
-					for(size_t rank = 0 ; rank < hospitals[idxHos].preferences.size(); ++rank) {
-						auto posDoc = std::find(hospitals[idxHos].preferences[rank].begin(), hospitals[idxHos].preferences[rank].end(), i + 1);
-						if (posDoc != hospitals[idxHos].preferences[rank].end()) {
-							hospitals[idxHos].preferences[rank].erase(posDoc);
+							int idxHos = doctors[i].preferences[k][id] - 1;
+							// remove from idxHos any reference to i.
+							for(size_t rank = 0 ; rank < hospitals[idxHos].preferences.size(); ++rank) {
+								auto posDoc = std::find(hospitals[idxHos].preferences[rank].begin(), hospitals[idxHos].preferences[rank].end(), i + 1);
+								if (posDoc != hospitals[idxHos].preferences[rank].end()) {
+									hospitals[idxHos].preferences[rank].erase(posDoc);
+								}
+							}
 						}
 					}
-				}
-				doctors[i].nbPref = rank + 1;
-				doctors[i].preferences.resize(doctors[i].nbPref);
+					doctors[i].nbPref = rank + 1;
+					doctors[i].preferences.resize(doctors[i].nbPref);
 #ifdef DEBUG
-				std::cout << "removed " << remHere << std::endl;
+					std::cout << "removed " << remHere << std::endl;
 #endif /* DEBUG */
-				break;
+					break;
+				}
 			}
 		}
 	}
@@ -549,10 +489,12 @@ int Allocation::reductionExactHospital(bool supp) {
 		for(int position: doctorsMustBeAllocated) {
 			// If position is acceptable to i, then skip it.
 			bool isAcceptable = false;
-			for(size_t ind = 0; ind < doctors[position].preferences.size(); ++ind) {
-				if ((doctors[position].preferences[ind] - 1) == (int)i) {
-					isAcceptable = true;
-					break;
+			for(size_t ind = 0; (!isAcceptable) && ind < doctors[position].preferences.size(); ++ind) {
+				for(size_t id = 0; id < doctors[position].preferences[ind].size(); ++id) {
+					if ((doctors[position].preferences[ind][id] - 1) == (int)i) {
+						isAcceptable = true;
+						break;
+					}
 				}
 			}
 			if (isAcceptable) {
@@ -561,12 +503,14 @@ int Allocation::reductionExactHospital(bool supp) {
 			auto pos_vert = std::make_pair(1, position);
 			g.addVertex(pos_vert, 1);
 			for(size_t ind = 0; ind < doctors[position].preferences.size(); ++ind) {
-				int candidate = doctors[position].preferences[ind] - 1;
-				auto cand_vert = std::make_pair(0, candidate);
-				if (!g.containsVertex(cand_vert)) {
-					g.addVertex(cand_vert, hospitals[candidate].cap);
+				for(size_t id = 0; id < doctors[position].preferences[ind].size(); ++id) {
+					int candidate = doctors[position].preferences[ind][id] - 1;
+					auto cand_vert = std::make_pair(0, candidate);
+					if (!g.containsVertex(cand_vert)) {
+						g.addVertex(cand_vert, hospitals[candidate].cap);
+					}
+					g.addEdge(pos_vert, cand_vert);
 				}
-				g.addEdge(pos_vert, cand_vert);
 			}
 			while (g.augment()) { } // Empty loop to keep augmenting while we can
 		}
@@ -585,15 +529,17 @@ int Allocation::reductionExactHospital(bool supp) {
 				auto pos_vert = std::make_pair(1, position);
 				g.addVertex(pos_vert, 1);
 				for(size_t k = 0; k < doctors[position].preferences.size(); k++) {
-					int hosp_cand = doctors[position].preferences[k] - 1;
-					if (hosp_cand == (int)i) { // Don't add the current candidate to the graph
-						break;
+					for(size_t id = 0; id < doctors[position].preferences[k].size(); ++id) {
+						int hosp_cand = doctors[position].preferences[k][id] - 1;
+						if (hosp_cand == (int)i) { // Don't add the current candidate to the graph
+							break;
+						}
+						std::pair<int,int> hosp_cand_vert = std::make_pair(0, hosp_cand);
+						if (! g.containsVertex(hosp_cand_vert)) {
+							g.addVertex(hosp_cand_vert, hospitals[hosp_cand].cap);
+						}
+						g.addEdge(pos_vert, hosp_cand_vert);
 					}
-					std::pair<int,int> hosp_cand_vert = std::make_pair(0, hosp_cand);
-					if (! g.containsVertex(hosp_cand_vert)) {
-						g.addVertex(hosp_cand_vert, hospitals[hosp_cand].cap);
-					}
-					g.addEdge(pos_vert, hosp_cand_vert);
 				}
 			}
 			// max_flow is <= min(g.cap_left(), g.cap_right()), so we can do simple
@@ -635,11 +581,13 @@ int Allocation::reductionExactHospital(bool supp) {
 					hospitals[i].nbTotPref -= hospitals[i].preferences[k].size();
 					for (unsigned int l = 0; l < hospitals[i].preferences[k].size(); l++) {
 						int idxDoc = hospitals[i].preferences[k][l] - 1;
-						for(size_t n=0; n < doctors[idxDoc].preferences.size();n++){								
-							if(doctors[idxDoc].preferences[n]-1 == (int)i){
-								doctors[idxDoc].preferences.erase(doctors[idxDoc].preferences.begin() + n); 
-								doctors[idxDoc].ranks.erase(doctors[idxDoc].ranks.begin() + n); 
-								doctors[idxDoc].nbPref--;
+						for(size_t n=0; n < doctors[idxDoc].preferences.size();n++){
+							for(size_t id = 0; id < doctors[idxDoc].preferences[n].size(); ++id) {
+								if(doctors[idxDoc].preferences[n][id]-1 == (int)i){
+									doctors[idxDoc].preferences[n].erase(doctors[idxDoc].preferences[n].begin() + id); 
+									doctors[idxDoc].ranks[n].erase(doctors[idxDoc].ranks[n].begin() + id); 
+									doctors[idxDoc].nbPref--;
+								}
 							}
 						}
 					}
@@ -675,9 +623,11 @@ void Allocation::polish(){
 				preferences.push_back(hospitals[j].preferences[k]);
 				for(size_t i=0;i<hospitals[j].preferences[k].size();i++){
 					int idxDoc = hospitals[j].preferences[k][i] - 1;
-					for(int l=0;l<doctors[idxDoc].nbPref;l++){
-						if(doctors[idxDoc].preferences[l]-1 == j){
-							doctors[idxDoc].ranks[l] -= idxRem;
+					for(int group_id = 0; group_id < doctors[idxDoc].nbPref; group_id++){
+						for(size_t id = 0; id < doctors[idxDoc].preferences[group_id].size(); ++id) {
+							if(doctors[idxDoc].preferences[group_id][id]-1 == j){
+								doctors[idxDoc].ranks[group_id][id] -= idxRem;
+							}
 						}
 					}
 				}
@@ -690,8 +640,6 @@ void Allocation::polish(){
 
 void Allocation::reduction(int mode){
 	total_removed = 0;
-	int nbRed1 = 0;
-	int nbRed2 = 0;
 	int i = 0;
 	int this_time = 0;
 	initTimePP = getCPUTime();
@@ -729,13 +677,7 @@ void Allocation::reduction(int mode){
 		bool keep_going;
 		do{
 			keep_going = false;
-			if (mode == 0) {
-				nbRed1 = reductionHosOff();
-				nbRed2 = reductionResApp();
-				i++;
-				this_time = nbRed1 + nbRed2;
-				total_removed += this_time;
-			} else if (mode == 6) {
+			if (mode == 6) {
 				this_time = reductionExactHospital(false);
 				this_time += reductionExactDoctor(false);
 				total_removed += this_time;
@@ -823,25 +765,34 @@ void Allocation::checkSolution(){
 
 	// Get the maxRank of the hospital and the number of doctors allocated to each hospital
 	for(int i=0; i<nbDoctors; i++){
-		for(int j=0; j<doctors[i].nbPref; j++){
-			if(assignmentByDoctor[i] == doctors[i].preferences[j]){
-				maxRankHospital[doctors[i].preferences[j]-1] = max(maxRankHospital[doctors[i].preferences[j]-1], doctors[i].ranks[j]);
-				capacityHospital[doctors[i].preferences[j]-1]++ ;
-				solByDoctor++;
+		for(int group_id=0; group_id<doctors[i].nbPref; group_id++){
+			for(size_t id =0; id < doctors[i].preferences[group_id].size(); ++id) {
+				if(assignmentByDoctor[i] == doctors[i].preferences[group_id][id]){
+					maxRankHospital[doctors[i].preferences[group_id][id]-1] = max(maxRankHospital[doctors[i].preferences[group_id][id]-1], doctors[i].ranks[group_id][id]);
+					capacityHospital[doctors[i].preferences[group_id][id]-1]++ ;
+					solByDoctor++;
+				}
 			}
 		}
 	}
 
 	// Check for stability
 	for(int i=0; i<nbDoctors; i++){
-		int j = 0;
-		while(j < doctors[i].nbPref && assignmentByDoctor[i] != doctors[i].preferences[j]){
-			if(maxRankHospital[doctors[i].preferences[j]-1] > doctors[i].ranks[j]){
-				cout << "Stability error: blocking pair Hospital " << doctors[i].preferences[j] << " (rank " << maxRankHospital[doctors[i].preferences[j]-1] << ") Patient "
-					<< i+1 << "(rank" << doctors[i].ranks[j] << ")"<< endl;
-				mistake = true;
+		int group_id = 0;
+		while(group_id < doctors[i].nbPref) {
+			if (std::find(doctors[i].preferences[group_id].begin(),
+						doctors[i].preferences[group_id].end(),
+						assignmentByDoctor[i]) != doctors[i].preferences[group_id].end()) {
+				break;
 			}
-			j++;
+			for(size_t id = 0; id < doctors[i].preferences[group_id].size(); ++id){
+				if(maxRankHospital[doctors[i].preferences[group_id][id]-1] > doctors[i].ranks[group_id][id]){
+					cout << "Stability error: blocking pair Hospital " << doctors[i].preferences[group_id][id] << " (rank " << maxRankHospital[doctors[i].preferences[group_id][id]-1] << ") Doctor "
+						<< i+1 << "(rank" << doctors[i].ranks[group_id][id] << ")"<< endl;
+					mistake = true;
+				}
+			}
+			group_id++;
 		}
 	}
 

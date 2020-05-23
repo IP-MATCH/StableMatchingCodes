@@ -1,5 +1,7 @@
 #include "main.h"
 
+#include <map>
+
 /*	*************************************************************************************
 	*************************************  MAIN *****************************************
 	************************************************************************************* */
@@ -16,9 +18,9 @@ int main(int argc, char **argv){
 	// functions
 	allo.load(path,filein);
 	allo.printProb();
-
 	manlove(allo, mode);
 
+	allo.printProb();
 	allo.printSol();
 	allo.checkSolution();
 	allo.printInfo(pathAndFileout);
@@ -40,7 +42,7 @@ int manlove(Allocation& allo, int mode){
 		GRBModel model = GRBModel(env);
 		GRBLinExpr objFun = 0;
 		
-		vector<vector<GRBVar> > isDoctorIAllocatedToHospitalJ (allo.nbDoctors);
+		std::map<int, std::map<int, GRBVar> > isDoctorIAllocatedToHospitalJ;
 		vector<vector<GRBVar> > isHospitalJFullAtRankK (allo.nbHospitals);
 
 		vector<vector<GRBVar> > hIBFD (allo.nbDoctors);
@@ -48,11 +50,14 @@ int manlove(Allocation& allo, int mode){
 
 		// Initialization
 		for (int i = 0; i < allo.nbDoctors; i++){
-			isDoctorIAllocatedToHospitalJ[i].resize(allo.doctors[i].nbPref);
+			isDoctorIAllocatedToHospitalJ[i] = std::map<int, GRBVar>();
 			hIBFD[i].resize(allo.doctors[i].nbPref);
-			for (int j = 0; j<allo.doctors[i].nbPref; j++){
+			for (int j = 0; j<allo.doctors[i].nbPref; j++) {
 				hIBFD[i][j] = model.addVar(0, 1, 0, GRB_BINARY);
-				isDoctorIAllocatedToHospitalJ[i][j] = model.addVar(0, 1, 0, GRB_BINARY);
+				for (size_t id = 0; id < allo.doctors[i].preferences[j].size(); ++id) {
+					int pref = allo.doctors[i].preferences[j][id];
+					isDoctorIAllocatedToHospitalJ[i][pref-1] = model.addVar(0, 1, 0, GRB_BINARY);
+				}
 			}
 		}
 
@@ -79,7 +84,11 @@ int manlove(Allocation& allo, int mode){
 		// hIBF values
 		for (int i = 0; i < allo.nbDoctors; i++){
 			for (int j = 0; j<allo.doctors[i].nbPref; j++){
-				GRBLinExpr exp = isDoctorIAllocatedToHospitalJ[i][j];
+				GRBLinExpr exp;
+				for (size_t id = 0; id < allo.doctors[i].preferences[j].size(); ++id) {
+					int pref = allo.doctors[i].preferences[j][id];
+					exp += isDoctorIAllocatedToHospitalJ[i][pref-1];
+				}
 				if(j > 0) exp += hIBFD[i][j-1];
 				model.addConstr(hIBFD[i][j] == exp);
 			}
@@ -87,13 +96,12 @@ int manlove(Allocation& allo, int mode){
 
 		for (int j = 0; j < allo.nbHospitals; j++){
 			for (int k = 0; k<allo.hospitals[j].nbPref; k++){
-				GRBLinExpr exp = 0;
+				GRBLinExpr exp;
 				for(size_t l=0; l<allo.hospitals[j].preferences[k].size();l++){
 					int idxDoc = allo.hospitals[j].preferences[k][l]-1;
-					for(size_t m=0; m < allo.doctors[idxDoc].preferences.size();m++){								
-						if(allo.doctors[idxDoc].preferences[m]-1 == j){
-							exp += isDoctorIAllocatedToHospitalJ[idxDoc][m];
-						}
+					auto it = isDoctorIAllocatedToHospitalJ[idxDoc].find(j);
+					if (it != isDoctorIAllocatedToHospitalJ[idxDoc].end()) {
+						exp += isDoctorIAllocatedToHospitalJ[idxDoc][j];
 					}
 				}
 				if(k > 0) exp += hIBFH[j][k-1];
@@ -104,7 +112,10 @@ int manlove(Allocation& allo, int mode){
 		// Doctor rank constraints
 		for (int i = 0; i < allo.nbDoctors; i++){
 			for (int j = 0; j<allo.doctors[i].nbPref; j++){
-				model.addConstr(isDoctorIAllocatedToHospitalJ[i][j] <= 1 - isHospitalJFullAtRankK[allo.doctors[i].preferences[j] - 1][allo.doctors[i].ranks[j]-1]);
+				for (size_t id = 0; id < allo.doctors[i].preferences[j].size(); ++id) {
+					int pref = allo.doctors[i].preferences[j][id];
+					model.addConstr(isDoctorIAllocatedToHospitalJ[i][pref-1] <= 1 - isHospitalJFullAtRankK[pref-1][allo.doctors[i].ranks[j][id]-1]);
+				}
 			}
 		}
 
@@ -126,9 +137,12 @@ int manlove(Allocation& allo, int mode){
 				for(size_t i=0; i<allo.hospitals[j].preferences[k].size();i++){
 					int idxDoc = allo.hospitals[j].preferences[k][i]-1;
 					int idxRank = -1;
-					for(size_t m=0; m < allo.doctors[idxDoc].preferences.size();m++){								
-						if(allo.doctors[idxDoc].preferences[m]-1 == j){
-							idxRank = m;
+					for(size_t m=0; (idxRank == -1) && m < allo.doctors[idxDoc].preferences.size();m++) {
+						for(size_t id = 0; id < allo.doctors[idxDoc].preferences[m].size(); ++id) {
+							if(allo.doctors[idxDoc].preferences[m][id]-1 == j) {
+								idxRank = m;
+								break;
+							}
 						}
 					}
 					model.addConstr(1 - isHospitalJFullAtRankK[j][k+1] <= hIBFD[idxDoc][idxRank]);
@@ -189,10 +203,12 @@ int manlove(Allocation& allo, int mode){
 
 		for (int i = 0; i < allo.nbDoctors; i++){
 			for (int j = 0; j<allo.doctors[i].nbPref; j++){
-				if (ceil(isDoctorIAllocatedToHospitalJ[i][j].get(GRB_DoubleAttr_X) - EPSILON) == 1){
-					int idHospital = allo.doctors[i].preferences[j];
-					allo.assignmentByDoctor[i] = idHospital;
-					allo.assignmentByHospital[idHospital-1].push_back(i+1);
+				for (size_t id = 0; id < allo.doctors[i].preferences[j].size(); ++id) {
+					if (ceil(isDoctorIAllocatedToHospitalJ[i][allo.doctors[i].preferences[j][id] - 1].get(GRB_DoubleAttr_X) - EPSILON) == 1){
+						int idHospital = allo.doctors[i].preferences[j][id];
+						allo.assignmentByDoctor[i] = idHospital;
+						allo.assignmentByHospital[idHospital-1].push_back(i+1);
+					}
 				}
 			}
 		}
