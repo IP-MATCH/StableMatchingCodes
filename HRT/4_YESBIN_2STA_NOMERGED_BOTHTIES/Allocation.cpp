@@ -586,7 +586,7 @@ int Allocation::reductionExactHospital(bool supp) {
 								if(doctors[idxDoc].preferences[n][id]-1 == (int)i){
 									doctors[idxDoc].preferences[n].erase(doctors[idxDoc].preferences[n].begin() + id); 
 									doctors[idxDoc].ranks[n].erase(doctors[idxDoc].ranks[n].begin() + id); 
-									doctors[idxDoc].nbPref--;
+									doctors[idxDoc].nbTotPref--;
 								}
 							}
 						}
@@ -678,10 +678,6 @@ void Allocation::reduction(int mode){
 		do{
 			keep_going = false;
 			if (mode == 6) {
-				this_time = reductionExactHospital(false);
-				this_time += reductionExactDoctor(false);
-				total_removed += this_time;
-			} else if (mode == 7) {
 				this_time = reductionExactHospital(false);
 				this_time += reductionExactDoctor(false);
 				total_removed += this_time;

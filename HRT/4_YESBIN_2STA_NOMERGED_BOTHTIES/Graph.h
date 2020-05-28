@@ -10,31 +10,39 @@
 #include <vector>
 
 
-static_assert(std::numeric_limits<size_t>::max() >= ((long unsigned)1 << 63), "size_t is too small");
+// The type of our vertex ID.
+typedef unsigned int vert_id; // Identifier from instance
+typedef unsigned int int_id; // Our internal identifier
+
+static_assert(std::numeric_limits<size_t>::max() >= ((long unsigned)1 << 31), "size_t is too small");
+static_assert(std::numeric_limits<vert_id>::max() >= ((long unsigned)1 << 31), "unsigned int is too small");
+
+typedef std::pair<short , vert_id> Vertex;
 
 struct pairhash {
 	public:
-		std::size_t operator()(const std::pair<int,int> &x) const {
-			return (long)x.first * ((long)1 << 32) + x.second;
+		// Note that we have to allow x.first == 2 for our source/sink.
+		// 1 << 28 == 2^29, so 2 * (1 << 28) = 2^31.
+		std::size_t constexpr operator()(const Vertex &x) const {
+			return (long)x.first * ((long)1 << 28) + x.second;
 		}
 };
 
 #if defined(DEBUG_GRAPH) || defined(DEBUG)
 #include <iostream>
-inline std::ostream& operator<<(std::ostream& o, const std::pair<int, int> &x) {
+inline std::ostream& operator<<(std::ostream& o, const Vertex &x) {
   o << "(" << x.first << ", " << x.second << ")";
   return o;
 }
 #endif /* DEBUG_GRAPH */
 
 struct Edge {
-    int id;
+    size_t id;
     int cap;
     int flow;
     bool reverse;
 };
 
-typedef std::pair<int, int> Vertex;
 
 class Graph {
   public:
@@ -57,8 +65,8 @@ class Graph {
 
     Vertex name(int vert_index);
 
-    constexpr static int SOURCE = 0;
-    constexpr static int SINK = 1;
+    constexpr static vert_id SOURCE = 0;
+    constexpr static vert_id SINK = 1;
 
 #ifdef DEBUG_GRAPH
     void printGraph();
@@ -69,15 +77,14 @@ class Graph {
     int _cap_total;
     int _left_total;
     int max_flow;
-    std::unordered_map<Vertex, int, pairhash> _names;
-    std::unordered_map<int, Vertex> _indices;
-    // Each adjacent is a triple containing (other_vertex, capacity,
-    // current_flow)
-    std::map<int, std::map<int, Edge>> _adjacents;
+    std::unordered_map<int_id, Vertex> _indices;
+    std::unordered_map<Vertex, int_id, pairhash> _names;
+    std::vector<std::vector<char>> _exists;
+    std::vector<std::vector<Edge>> _adjacents;
 
-    Edge & getEdge(int a, int b) { return _adjacents[a][b]; }
+    Edge & getEdge(int_id a, int_id b) { return _adjacents[a][b]; }
 
-    bool internal_augment(int now, std::vector<bool> & visited, std::list<int> & path);
+    bool internal_augment(int_id now, std::vector<char> & visited, std::list<int_id> & path);
 };
 
 #endif /* GRAPH_H */
