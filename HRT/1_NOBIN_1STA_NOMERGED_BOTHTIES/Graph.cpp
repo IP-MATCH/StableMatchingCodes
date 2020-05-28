@@ -5,11 +5,15 @@
 constexpr decltype(Graph::SOURCE) Graph::SOURCE;
 constexpr decltype(Graph::SINK) Graph::SINK;
 
+const size_t expected_size = 1 << 16;
+
 Graph::Graph(int cap_original) : _cap_original(cap_original), _cap_total(0),
-  _left_total(0), max_flow(0) {
+  _left_total(0), max_flow(0), _exists(2), _adjacents(expected_size) {
 #ifdef DEBUG_GRAPH
-  std::cout << "New graph" << std::endl; 
+  std::cout << "New graph" << std::endl;
 #endif /* DEBUG_GRAPH */
+  this->_exists[0] = std::vector<char>(expected_size, (char)false);
+  this->_exists[1] = std::vector<char>(expected_size, (char)false);
   this->addVertex(std::make_pair(2, Graph::SOURCE), 1); // SOURCE
   this->addVertex(std::make_pair(2, Graph::SINK), 1); // SINK
 }
@@ -21,7 +25,7 @@ void Graph::addVertex(Vertex name, int capacity) {
 #ifdef DEBUG_GRAPH
   std::cout << "Add vertex " << name << " with cap " << capacity << std::endl;
 #endif /* DEBUG_GRAPH */
-  this->_adjacents[index] = std::map<int, Edge>();
+  this->_adjacents[index] = std::vector<Edge>(expected_size);
   if (name.first != 2) {
     Edge e1, e2;
     _cap_total += capacity;
@@ -45,6 +49,7 @@ void Graph::addVertex(Vertex name, int capacity) {
       e2.cap = capacity;
       e2.reverse = false;
     }
+    this->_exists[name.first][name.second] = (char)true;
     this->_adjacents[e1.id][e2.id] = e2;
     this->_adjacents[e2.id][e1.id] = e1;
   }
@@ -55,7 +60,7 @@ Vertex Graph::name(int vert_index) {
 }
 
 bool Graph::containsVertex(Vertex name) const {
-  return _names.find(name) != _names.end();
+  return (bool)this->_exists[name.first][name.second];
 }
 
 /**
@@ -110,14 +115,15 @@ bool Graph::augment() {
   std::cout << "Augmenting" << std::endl;
   this->printGraph();
 #endif /* DEBUG_GRAPH */
-  std::list<int> path;
-  std::vector<bool> visited(size(), false);
-  visited[Graph::SOURCE] = true;
+  std::list<int_id> path;
+  std::vector<char> visited(size(), false);
+  visited[Graph::SOURCE] = (char)true;
   path.push_back(Graph::SOURCE);
   return internal_augment(Graph::SOURCE, visited, path);
 }
 
 #ifdef DEBUG_GRAPH
+// TODO Rewrite using new data structures.
 void Graph::printGraph() {
   for(auto & tuple : _adjacents) {
     int ind = tuple.first;
@@ -135,11 +141,12 @@ void Graph::printGraph() {
 /**
  * Continues an augmentation, on vertex now, which is on the right.
  */
-bool Graph::internal_augment(int now, std::vector<bool> & visited,
-    std::list<int> & path) {
-  for(auto & tuple: _adjacents[now]) {
-    Edge & next_edge = tuple.second;
-    if (visited[next_edge.id]) {
+bool Graph::internal_augment(int_id now, std::vector<char> & visited,
+    std::list<int_id> & path) {
+  //for(const auto & next_edge: _adjacents[now]) {
+  for(size_t i = 0; i < _adjacents[now].size(); ++i) {
+    const auto & next_edge = _adjacents[now][i];
+    if ((bool)visited[next_edge.id]) {
       continue;
     }
     // Can't add any more flow to this edge.
@@ -161,7 +168,7 @@ bool Graph::internal_augment(int now, std::vector<bool> & visited,
       std::cout << "New flow found." << std::endl;
 #endif /* DEBUG_GRAPH */
       path.push_back(next_edge.id);
-      int start = Graph::SOURCE;
+      int_id start = Graph::SOURCE;
       int total_flow = std::numeric_limits<int>::max();
 #ifdef DEBUG_GRAPH
       std::cout << "Path is ";
@@ -214,7 +221,7 @@ bool Graph::internal_augment(int now, std::vector<bool> & visited,
       return true;
     }
     path.push_back(next_edge.id);
-    visited[next_edge.id] = true;
+    visited[next_edge.id] = (char)true;
     if (internal_augment(next_edge.id, visited, path)) {
       return true;
     }
