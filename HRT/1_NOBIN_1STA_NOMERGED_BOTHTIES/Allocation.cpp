@@ -586,7 +586,7 @@ int Allocation::reductionExactHospital(bool supp) {
 								if(doctors[idxDoc].preferences[n][id]-1 == (int)i){
 									doctors[idxDoc].preferences[n].erase(doctors[idxDoc].preferences[n].begin() + id); 
 									doctors[idxDoc].ranks[n].erase(doctors[idxDoc].ranks[n].begin() + id); 
-									doctors[idxDoc].nbPref--;
+									doctors[idxDoc].nbTotPref--;
 								}
 							}
 						}

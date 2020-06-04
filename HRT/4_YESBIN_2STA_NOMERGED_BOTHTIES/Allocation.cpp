@@ -316,7 +316,7 @@ int Allocation::reductionMineHospitals(int mode) {
 								if (doctors[idxDoc].preferences[m][id] == i + 1) {
 									doctors[idxDoc].preferences[m].erase(doctors[idxDoc].preferences[m].begin() + id);
 									doctors[idxDoc].ranks[m].erase(doctors[idxDoc].ranks[m].begin() + id);
-									doctors[idxDoc].nbPref--;
+									doctors[idxDoc].nbTotPref--;
 									break_now = true;
 									break;
 								}
