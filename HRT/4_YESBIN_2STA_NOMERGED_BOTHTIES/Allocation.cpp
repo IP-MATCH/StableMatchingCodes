@@ -376,7 +376,10 @@ int Allocation::reductionExactDoctor(bool supp) {
 					g.addEdge(pos_vert, cand_vert);
 				}
 			}
-			while (g.augment()) { } // Empty loop to keep augmenting while we can
+			int times_to_augment = hospitals[position].cap;
+			while (g.augment(pos_vert) && times_to_augment > 0) {
+				times_to_augment--;
+				}
 		}
 		for(size_t rank = 0; rank < doctors[i].preferences.size(); rank++) {
 			// No point in checking the last rank if we already know this agent must
@@ -418,9 +421,9 @@ int Allocation::reductionExactDoctor(bool supp) {
 					can_def_preprocess = true;
 				}
 				if (!can_def_preprocess) {
-					while (g.augment()) {
-						// Empty loop on purpose, we keep augmenting while we can keep
-						// augmenting.
+					int times_to_augment = hospitals[position].cap;
+					while (g.augment(pos_vert) && (times_to_augment > 0)) {
+						times_to_augment--;
 					}
 				}
 				if (can_def_preprocess || g.can_preprocess()) {
@@ -512,7 +515,11 @@ int Allocation::reductionExactHospital(bool supp) {
 					g.addEdge(pos_vert, cand_vert);
 				}
 			}
-			while (g.augment()) { } // Empty loop to keep augmenting while we can
+			int times_to_augment = 1;
+			while (g.augment(pos_vert) && (times_to_augment > 0)) {
+
+				times_to_augment--;
+			}
 		}
 		for(size_t rank = 0; rank < hospitals[i].preferences.size(); rank++) {
 			// No point in checking the last rank if we already know this agent must
@@ -541,19 +548,20 @@ int Allocation::reductionExactHospital(bool supp) {
 						g.addEdge(pos_vert, hosp_cand_vert);
 					}
 				}
-			}
-			// max_flow is <= min(g.cap_left(), g.cap_right()), so we can do simple
-			// checks which might mean we can not bother trying to augment
-			bool can_def_preprocess = hospitals[i].cap + 2*g.cap_left() <= g.cap_total();
-			if (hospitals[i].cap + g.cap_left() + g.cap_right() <= g.cap_total()) {
-				can_def_preprocess = true;
-			}
-			if (!can_def_preprocess) {
-				while (g.augment()) {
-					// Empty loop on purpose, we keep augmenting while we can keep
-					// augmenting.
+				// max_flow is <= min(g.cap_left(), g.cap_right()), so we can do simple
+				// checks which might mean we can not bother trying to augment
+				bool can_def_preprocess = hospitals[i].cap + 2*g.cap_left() <= g.cap_total();
+				if (hospitals[i].cap + g.cap_left() + g.cap_right() <= g.cap_total()) {
+					can_def_preprocess = true;
+				}
+				if (!can_def_preprocess) {
+					int times_to_augment = 1;
+					while (g.augment(pos_vert) && (times_to_augment > 0)) {
+						times_to_augment--;
+					}
 				}
 			}
+			bool can_def_preprocess = hospitals[i].cap + 2*g.cap_left() <= g.cap_total();
 			if (can_def_preprocess || g.can_preprocess()) {
 				// preprocess on rank!
 				// Firstly, they must be allocated, so mark as such (if we're in that

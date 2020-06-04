@@ -52,7 +52,7 @@ class Graph {
     void addEdge(Vertex v1, Vertex v2);
     const std::list<int> adjacent(Vertex vertex) const;
     int matched(Vertex vertex) const;
-    bool augment();
+    bool augment(Vertex source);
 
     bool can_preprocess();
 
@@ -81,6 +81,7 @@ class Graph {
     std::unordered_map<Vertex, int_id, pairhash> _names;
     std::vector<std::vector<char>> _exists;
     std::vector<std::vector<Edge>> _adjacents;
+    std::vector<signed int> _cap_remaining;
 
     Edge & getEdge(int_id a, int_id b) { return _adjacents[a][b]; }
 
