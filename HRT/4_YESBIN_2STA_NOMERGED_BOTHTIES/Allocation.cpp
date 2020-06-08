@@ -348,7 +348,7 @@ int Allocation::reductionExactDoctor(bool supp) {
 	bool newMustBeAllocated = false;
 	int nbTotRem = 0;
 	for (int i = 0; i < nbDoctors; i++) {
-		Graph g(1);
+		Graph g(1, nbHospitals + nbDoctors);
 		// First add all positions that must be filled.
 		for(int position: hospitalsMustBeAllocated) {
 			// If position is acceptable to i, then skip it.
@@ -493,7 +493,7 @@ int Allocation::reductionExactHospital(bool supp) {
 	bool newMustBeAllocated = false;
 	int nbTotRem = 0;
 	for (size_t i = 0; i < (size_t)nbHospitals; i++) {
-		Graph g(hospitals[i].cap);
+		Graph g(hospitals[i].cap, nbHospitals + nbDoctors);
 		// First add all positions that must be filled.
 		for(int position: doctorsMustBeAllocated) {
 			// If position is acceptable to i, then skip it.

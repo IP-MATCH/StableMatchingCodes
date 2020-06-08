@@ -46,7 +46,8 @@ struct Edge {
 
 class Graph {
   public:
-    Graph(int cap_right);
+    Graph(int cap_original, size_t expected_size);
+    ~Graph();
     void addVertex(Vertex name, int capacity);
     bool containsVertex(Vertex name) const;
     void addEdge(Vertex v1, Vertex v2);
@@ -73,6 +74,7 @@ class Graph {
 #endif /* DEBUG_GRAPH */
 
   private:
+    size_t _expected_size;
     int _cap_original;
     int _cap_total;
     int _left_total;
@@ -80,10 +82,12 @@ class Graph {
     std::unordered_map<int_id, Vertex> _indices;
     std::unordered_map<Vertex, int_id, pairhash> _names;
     std::vector<std::vector<char>> _exists;
-    std::vector<std::vector<Edge>> _adjacents;
+    std::vector<std::vector<Edge*>> _adjmat;
+    std::vector<std::vector<Edge*>> _adjacents;
     std::vector<signed int> _cap_remaining;
+    std::vector<char> _on_right;
 
-    Edge & getEdge(int_id a, int_id b) { return _adjacents[a][b]; }
+    Edge & getEdge(int_id a, int_id b) { return *_adjmat[a][b]; }
 
     bool internal_augment(int_id now, std::vector<char> & visited, std::list<int_id> & path);
 };
