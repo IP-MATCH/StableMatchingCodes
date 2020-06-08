@@ -2,20 +2,27 @@
 #include <iostream>
 #include "Graph.h"
 
-constexpr decltype(Graph::SOURCE) Graph::SOURCE;
-constexpr decltype(Graph::SINK) Graph::SINK;
 
-const size_t expected_size = 1 << 16;
-
-Graph::Graph(int cap_original) : _cap_original(cap_original), _cap_total(0),
-  _left_total(0), max_flow(0), _exists(2), _adjacents(expected_size) {
+Graph::Graph(int cap_original, size_t expected_size) :
+  _expected_size(expected_size), _cap_original(cap_original), _cap_total(0),
+  _left_total(0), max_flow(0), _exists(2), _adjmat(expected_size),
+  _adjacents(expected_size), _cap_remaining(expected_size),
+  _on_right(expected_size) {
 #ifdef DEBUG_GRAPH
   std::cout << "New graph" << std::endl;
 #endif /* DEBUG_GRAPH */
-  this->_exists[0] = std::vector<char>(expected_size, (char)false);
-  this->_exists[1] = std::vector<char>(expected_size, (char)false);
-  this->addVertex(std::make_pair(2, Graph::SOURCE), 1); // SOURCE
-  this->addVertex(std::make_pair(2, Graph::SINK), 1); // SINK
+  this->_exists[0] = std::vector<char>(_expected_size, (char)false);
+  this->_exists[1] = std::vector<char>(_expected_size, (char)false);
+}
+
+Graph::~Graph() {
+  for(auto & tuple: this->_names) {
+    auto & name = tuple.second;
+    auto & adj = _adjacents[name];
+    for(auto & e: adj) {
+      delete e;
+    }
+  }
 }
 
 void Graph::addVertex(Vertex name, int capacity) {
@@ -25,34 +32,17 @@ void Graph::addVertex(Vertex name, int capacity) {
 #ifdef DEBUG_GRAPH
   std::cout << "Add vertex " << name << " with cap " << capacity << std::endl;
 #endif /* DEBUG_GRAPH */
-  this->_adjacents[index] = std::vector<Edge>(expected_size);
-  if (name.first != 2) {
-    Edge e1, e2;
-    _cap_total += capacity;
-    if (name.first == 0) { // left side
-      e1.id = index;
-      e1.flow = 0;
-      e1.cap = capacity;
-      e1.reverse = false;
-      e2.id = Graph::SOURCE;
-      e2.flow = 0;
-      e2.cap = capacity;
-      e2.reverse = false;
-      _left_total += capacity;
-    } else if (name.first == 1) { // right side
-      e1.id = index;
-      e1.flow = 0;
-      e1.cap = capacity;
-      e1.reverse = false;
-      e2.id = Graph::SINK;
-      e2.flow = 0;
-      e2.cap = capacity;
-      e2.reverse = false;
-    }
-    this->_exists[name.first][name.second] = (char)true;
-    this->_adjacents[e1.id][e2.id] = e2;
-    this->_adjacents[e2.id][e1.id] = e1;
+  this->_adjmat[index] = std::vector<Edge*>(_expected_size, nullptr);
+  this->_adjacents[index] = std::vector<Edge*>();
+  _cap_total += capacity;
+  this->_cap_remaining[index] = capacity;
+  if (name.first == 1) {
+    this->_on_right[index] = (char)true;
+  } else {
+    this->_on_right[index] = (char)false;
+    this->_left_total += capacity;
   }
+  this->_exists[name.first][name.second] = (char)true;
 }
 
 Vertex Graph::name(int vert_index) {
@@ -70,17 +60,20 @@ bool Graph::containsVertex(Vertex name) const {
 void Graph::addEdge(Vertex v1, Vertex v2) {
   int i1 = this->_names[v1];
   int i2 = this->_names[v2];
-  Edge e1, e2;
-  e1.id = i1;
-  e1.cap = std::numeric_limits<int>::max();
-  e1.flow = 0;
-  e1.reverse = false;
-  e2.id = i2;
-  e2.cap = std::numeric_limits<int>::max();
-  e2.flow = 0;
-  e2.reverse = true;
-  _adjacents[i1][i2] = e2;
-  _adjacents[i2][i1] = e1;
+  Edge *e1 = new Edge;
+  Edge *e2 = new Edge;
+  e1->id = i1;
+  e1->cap = 1;
+  e1->flow = 0;
+  e1->reverse = true;
+  e2->id = i2;
+  e2->cap = 1;
+  e2->flow = 0;
+  e2->reverse = false;
+  _adjacents[i1].push_back(e2);
+  _adjacents[i2].push_back(e1);
+  _adjmat[i1][i2] = e2;
+  _adjmat[i2][i1] = e1;
 }
 
 int Graph::size() const {
@@ -110,32 +103,32 @@ int Graph::cap_total() const {
 /**
  * Augment the flow.
  */
-bool Graph::augment() {
-#ifdef DEBUG_GRAPH
-  std::cout << "Augmenting" << std::endl;
-  this->printGraph();
-#endif /* DEBUG_GRAPH */
+bool Graph::augment(Vertex source) {
   std::list<int_id> path;
+  int source_name = this->_names[source];
+#ifdef DEBUG_GRAPH
+  this->printGraph();
+  std::cout << "Augmenting from " << source << std::endl;
+#endif /* DEBUG_GRAPH */
   std::vector<char> visited(size(), false);
-  visited[Graph::SOURCE] = (char)true;
-  path.push_back(Graph::SOURCE);
-  return internal_augment(Graph::SOURCE, visited, path);
+  visited[source_name] = (char)true;
+  path.push_back(source_name);
+  return internal_augment(source_name, visited, path);
 }
 
 #ifdef DEBUG_GRAPH
-// TODO Rewrite using new data structures.
 void Graph::printGraph() {
-  for(auto & tuple : _adjacents) {
-    int ind = tuple.first;
-    std::cout << _indices[ind] << ":";
-    for(auto & inner_tuple: tuple.second) {
-      const Edge & adj = inner_tuple.second;
-      std::cout << " " << _indices[adj.id] << "{" << adj.flow << "/" << adj.cap << "}";
+  for(auto & tuple: this->_names) {
+    auto & name = tuple.second;
+    auto & adj = _adjacents[name];
+    std::cout << tuple.first << " (" << _cap_remaining[name] << ") :";
+    std::cout << adj.size() << " edges";
+    for(auto & e: adj) {
+      std::cout << " " << _indices[e->id] << "{" << e->flow << "/" << e->cap << "}";
     }
     std::cout << std::endl;
   }
 }
-
 #endif /* DEBUG_GRAPH */
 
 /**
@@ -143,9 +136,22 @@ void Graph::printGraph() {
  */
 bool Graph::internal_augment(int_id now, std::vector<char> & visited,
     std::list<int_id> & path) {
-  //for(const auto & next_edge: _adjacents[now]) {
+#ifdef DEBUG_GRAPH
+  std::cout << "Augment path is";
+  for(auto & p: path) {
+    std::cout << " " << _indices[p];
+  }
+  std::cout << std::endl;
+#endif /* DEBUG_GRAPH */
   for(size_t i = 0; i < _adjacents[now].size(); ++i) {
-    const auto & next_edge = _adjacents[now][i];
+    const Edge next_edge = *_adjacents[now][i];
+#ifdef DEBUG_GRAPH
+    std::cout << "try " << _indices[next_edge.id];
+    if (next_edge.reverse) {
+      std::cout << " which is reverse";
+    }
+    std::cout << std::endl;
+#endif /* DEBUG_GRAPH */
     if ((bool)visited[next_edge.id]) {
       continue;
     }
@@ -161,63 +167,28 @@ bool Graph::internal_augment(int_id now, std::vector<char> & visited,
         continue;
       }
     }
-    //std::cout << "Considering " << _indices[next_edge.id] << " which has " << next_edge.flow << "/" << next_edge.cap << std::endl;
-    if (next_edge.id == Graph::SINK) {
+    if (_cap_remaining[next_edge.id] > 0) {
       // Found an augmenting flow. Modify flows used.
-#ifdef DEBUG_GRAPH
-      std::cout << "New flow found." << std::endl;
-#endif /* DEBUG_GRAPH */
+      _cap_remaining[next_edge.id] -= 1;
       path.push_back(next_edge.id);
-      int_id start = Graph::SOURCE;
-      int total_flow = std::numeric_limits<int>::max();
+
 #ifdef DEBUG_GRAPH
-      std::cout << "Path is ";
-#endif /* DEBUG_GRAPH */
-      for(auto p: path) {
-        if (p != Graph::SOURCE) {
-          int new_flow;
-          if (next_edge.reverse) {
-            new_flow = _adjacents[start][p].flow;
-          } else {
-            new_flow = _adjacents[start][p].cap - _adjacents[start][p].flow;
-          }
-          if (_adjacents[start][p].flow < 0 && _adjacents[start][p].cap == std::numeric_limits<int>::max()) {
-            new_flow = std::numeric_limits<int>::max();
-          }
-          total_flow = std::min(total_flow, new_flow);
-        }
-#ifdef DEBUG_GRAPH
-        if (p != Graph::SOURCE) {
-          int new_flow;
-          if (next_edge.reverse) {
-            new_flow = _adjacents[start][p].flow;
-          } else {
-            new_flow = _adjacents[start][p].cap - _adjacents[start][p].flow;
-          }
-          if (_adjacents[start][p].flow < 0 && _adjacents[start][p].cap == std::numeric_limits<int>::max()) {
-            new_flow = std::numeric_limits<int>::max();
-          }
-          std::cout << "f" << new_flow;
-        }
-        std::cout << " " << _indices.at(p);
-#endif /* DEBUG_GRAPH */
-        start = p;
+      std::cout << "Found augmenting path:";
+      for(auto & p: path) {
+        std::cout << " " << _indices[p];
       }
-#ifdef DEBUG_GRAPH
-      std::cout << " with flow " << total_flow << std::endl;
+      std::cout << std::endl;
 #endif /* DEBUG_GRAPH */
-      start = Graph::SOURCE;
+      int start = path.front();
+      path.pop_front();
       while(!path.empty()) {
         int next = path.front();
         path.pop_front();
-        if (next == Graph::SOURCE) {
-          continue;
-        }
-        _adjacents[start][next].flow += total_flow;
-        _adjacents[next][start].flow -= total_flow;
+        _adjmat[start][next]->flow += 1;
+        _adjmat[next][start]->flow -= 1;
         start = next;
       }
-      max_flow += total_flow;
+      max_flow += 1;
       return true;
     }
     path.push_back(next_edge.id);

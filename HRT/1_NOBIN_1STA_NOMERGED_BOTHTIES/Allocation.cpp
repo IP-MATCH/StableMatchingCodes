@@ -348,7 +348,7 @@ int Allocation::reductionExactDoctor(bool supp) {
 	bool newMustBeAllocated = false;
 	int nbTotRem = 0;
 	for (int i = 0; i < nbDoctors; i++) {
-		Graph g(1);
+		Graph g(1, nbHospitals + nbDoctors);
 		// First add all positions that must be filled.
 		for(int position: hospitalsMustBeAllocated) {
 			// If position is acceptable to i, then skip it.
@@ -376,7 +376,13 @@ int Allocation::reductionExactDoctor(bool supp) {
 					g.addEdge(pos_vert, cand_vert);
 				}
 			}
-			while (g.augment()) { } // Empty loop to keep augmenting while we can
+			int times_to_augment = hospitals[position].cap;
+			while (times_to_augment > 0) {
+				if (!g.augment(pos_vert)) {
+					break;
+				}
+				times_to_augment--;
+				}
 		}
 		for(size_t rank = 0; rank < doctors[i].preferences.size(); rank++) {
 			// No point in checking the last rank if we already know this agent must
@@ -418,9 +424,12 @@ int Allocation::reductionExactDoctor(bool supp) {
 					can_def_preprocess = true;
 				}
 				if (!can_def_preprocess) {
-					while (g.augment()) {
-						// Empty loop on purpose, we keep augmenting while we can keep
-						// augmenting.
+					int times_to_augment = hospitals[position].cap;
+					while (times_to_augment > 0) {
+						if (!g.augment(pos_vert)) {
+							break;
+						}
+						times_to_augment--;
 					}
 				}
 				if (can_def_preprocess || g.can_preprocess()) {
@@ -484,7 +493,7 @@ int Allocation::reductionExactHospital(bool supp) {
 	bool newMustBeAllocated = false;
 	int nbTotRem = 0;
 	for (size_t i = 0; i < (size_t)nbHospitals; i++) {
-		Graph g(hospitals[i].cap);
+		Graph g(hospitals[i].cap, nbHospitals + nbDoctors);
 		// First add all positions that must be filled.
 		for(int position: doctorsMustBeAllocated) {
 			// If position is acceptable to i, then skip it.
@@ -512,7 +521,13 @@ int Allocation::reductionExactHospital(bool supp) {
 					g.addEdge(pos_vert, cand_vert);
 				}
 			}
-			while (g.augment()) { } // Empty loop to keep augmenting while we can
+			int times_to_augment = 1;
+			while (times_to_augment > 0) {
+				if (!g.augment(pos_vert)) {
+					break;
+				}
+				times_to_augment--;
+			}
 		}
 		for(size_t rank = 0; rank < hospitals[i].preferences.size(); rank++) {
 			// No point in checking the last rank if we already know this agent must
@@ -528,11 +543,13 @@ int Allocation::reductionExactHospital(bool supp) {
 				int position = hospitals[i].preferences[rank][ind] - 1;
 				auto pos_vert = std::make_pair(1, position);
 				g.addVertex(pos_vert, 1);
-				for(size_t k = 0; k < doctors[position].preferences.size(); k++) {
+				bool break_yet = false;
+				for(size_t k = 0; k < doctors[position].preferences.size() && (!break_yet); k++) {
 					for(size_t id = 0; id < doctors[position].preferences[k].size(); ++id) {
 						int hosp_cand = doctors[position].preferences[k][id] - 1;
 						if (hosp_cand == (int)i) { // Don't add the current candidate to the graph
-							break;
+							break_yet = true;
+							continue;
 						}
 						std::pair<int,int> hosp_cand_vert = std::make_pair(0, hosp_cand);
 						if (! g.containsVertex(hosp_cand_vert)) {
@@ -541,19 +558,23 @@ int Allocation::reductionExactHospital(bool supp) {
 						g.addEdge(pos_vert, hosp_cand_vert);
 					}
 				}
-			}
-			// max_flow is <= min(g.cap_left(), g.cap_right()), so we can do simple
-			// checks which might mean we can not bother trying to augment
-			bool can_def_preprocess = hospitals[i].cap + 2*g.cap_left() <= g.cap_total();
-			if (hospitals[i].cap + g.cap_left() + g.cap_right() <= g.cap_total()) {
-				can_def_preprocess = true;
-			}
-			if (!can_def_preprocess) {
-				while (g.augment()) {
-					// Empty loop on purpose, we keep augmenting while we can keep
-					// augmenting.
+				// max_flow is <= min(g.cap_left(), g.cap_right()), so we can do simple
+				// checks which might mean we can not bother trying to augment
+				bool can_def_preprocess = hospitals[i].cap + 2*g.cap_left() <= g.cap_total();
+				if (hospitals[i].cap + g.cap_left() + g.cap_right() <= g.cap_total()) {
+					can_def_preprocess = true;
+				}
+				if (!can_def_preprocess) {
+					int times_to_augment = 1;
+					while (times_to_augment > 0) {
+						if (!g.augment(pos_vert)) {
+							break;
+						}
+						times_to_augment--;
+					}
 				}
 			}
+			bool can_def_preprocess = hospitals[i].cap + 2*g.cap_left() <= g.cap_total();
 			if (can_def_preprocess || g.can_preprocess()) {
 				// preprocess on rank!
 				// Firstly, they must be allocated, so mark as such (if we're in that
@@ -565,8 +586,8 @@ int Allocation::reductionExactHospital(bool supp) {
 				}
 #ifdef DEBUG
 				if (i == 0) {
-					//std::cout << "g.cap_original() = " << hospitals[i].cap << ", g.cap_left() = " << g.cap_left();
-					//std::cout << ", cap_total = " << g.cap_total() << ", g.maxFlow() = " << g.maxFlow() << std::endl;
+					std::cout << "g.cap_original() = " << hospitals[i].cap << ", g.cap_left() = " << g.cap_left();
+					std::cout << ", cap_total = " << g.cap_total() << ", g.maxFlow() = " << g.maxFlow() << std::endl;
 					//g.printGraph();
 					//g.printMatching();
 				}
@@ -642,6 +663,7 @@ void Allocation::reduction(int mode){
 	total_removed = 0;
 	int i = 0;
 	int this_time = 0;
+	pp_mode = mode;
 	initTimePP = getCPUTime();
 	if (mode == 7) {
 		do {
@@ -678,10 +700,6 @@ void Allocation::reduction(int mode){
 		do{
 			keep_going = false;
 			if (mode == 6) {
-				this_time = reductionExactHospital(false);
-				this_time += reductionExactDoctor(false);
-				total_removed += this_time;
-			} else if (mode == 7) {
 				this_time = reductionExactHospital(false);
 				this_time += reductionExactDoctor(false);
 				total_removed += this_time;
