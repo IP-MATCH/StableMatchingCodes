@@ -377,7 +377,10 @@ int Allocation::reductionExactDoctor(bool supp) {
 				}
 			}
 			int times_to_augment = hospitals[position].cap;
-			while (g.augment(pos_vert) && times_to_augment > 0) {
+			while (times_to_augment > 0) {
+				if (!g.augment(pos_vert)) {
+					break;
+				}
 				times_to_augment--;
 				}
 		}
@@ -422,7 +425,10 @@ int Allocation::reductionExactDoctor(bool supp) {
 				}
 				if (!can_def_preprocess) {
 					int times_to_augment = hospitals[position].cap;
-					while (g.augment(pos_vert) && (times_to_augment > 0)) {
+					while (times_to_augment > 0) {
+						if (!g.augment(pos_vert)) {
+							break;
+						}
 						times_to_augment--;
 					}
 				}
@@ -516,8 +522,10 @@ int Allocation::reductionExactHospital(bool supp) {
 				}
 			}
 			int times_to_augment = 1;
-			while (g.augment(pos_vert) && (times_to_augment > 0)) {
-
+			while (times_to_augment > 0) {
+				if (!g.augment(pos_vert)) {
+					break;
+				}
 				times_to_augment--;
 			}
 		}
@@ -558,7 +566,10 @@ int Allocation::reductionExactHospital(bool supp) {
 				}
 				if (!can_def_preprocess) {
 					int times_to_augment = 1;
-					while (g.augment(pos_vert) && (times_to_augment > 0)) {
+					while (times_to_augment > 0) {
+						if (!g.augment(pos_vert)) {
+							break;
+						}
 						times_to_augment--;
 					}
 				}
