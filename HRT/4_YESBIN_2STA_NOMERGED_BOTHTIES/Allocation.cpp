@@ -575,8 +575,8 @@ int Allocation::reductionExactHospital(bool supp) {
 				}
 #ifdef DEBUG
 				if (i == 0) {
-					//std::cout << "g.cap_original() = " << hospitals[i].cap << ", g.cap_left() = " << g.cap_left();
-					//std::cout << ", cap_total = " << g.cap_total() << ", g.maxFlow() = " << g.maxFlow() << std::endl;
+					std::cout << "g.cap_original() = " << hospitals[i].cap << ", g.cap_left() = " << g.cap_left();
+					std::cout << ", cap_total = " << g.cap_total() << ", g.maxFlow() = " << g.maxFlow() << std::endl;
 					//g.printGraph();
 					//g.printMatching();
 				}
@@ -652,6 +652,7 @@ void Allocation::reduction(int mode){
 	total_removed = 0;
 	int i = 0;
 	int this_time = 0;
+	pp_mode = mode;
 	initTimePP = getCPUTime();
 	if (mode == 7) {
 		do {
