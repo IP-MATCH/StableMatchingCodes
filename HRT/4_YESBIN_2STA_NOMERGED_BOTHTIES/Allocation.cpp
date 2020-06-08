@@ -535,11 +535,13 @@ int Allocation::reductionExactHospital(bool supp) {
 				int position = hospitals[i].preferences[rank][ind] - 1;
 				auto pos_vert = std::make_pair(1, position);
 				g.addVertex(pos_vert, 1);
-				for(size_t k = 0; k < doctors[position].preferences.size(); k++) {
+				bool break_yet = false;
+				for(size_t k = 0; k < doctors[position].preferences.size() && (!break_yet); k++) {
 					for(size_t id = 0; id < doctors[position].preferences[k].size(); ++id) {
 						int hosp_cand = doctors[position].preferences[k][id] - 1;
 						if (hosp_cand == (int)i) { // Don't add the current candidate to the graph
-							break;
+							break_yet = true;
+							continue;
 						}
 						std::pair<int,int> hosp_cand_vert = std::make_pair(0, hosp_cand);
 						if (! g.containsVertex(hosp_cand_vert)) {
