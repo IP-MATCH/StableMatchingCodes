@@ -57,7 +57,7 @@ const std::set<int> & AgentIteratorBase<t_these, t_other>::get_candidates() cons
 template <typename t_these, typename t_other>
 void AgentIteratorBase<t_these, t_other>::regularIncrement() {
 	_position++;
-	while ((int)_agent.preferences[_group].size() == _position) {
+	while ((int)_agent.preferences[_group].size() <= _position) {
 		_position = 0;
 		_group++;
 		if ((int)_agent.preferences.size() == _group) {
