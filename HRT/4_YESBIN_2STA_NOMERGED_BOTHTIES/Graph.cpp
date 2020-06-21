@@ -132,7 +132,7 @@ void Graph::printGraph() {
 #endif /* DEBUG_GRAPH */
 
 /**
- * Continues an augmentation, on vertex now, which is on the right.
+ * Continues an augmentation, on vertex now
  */
 bool Graph::internal_augment(int_id now, std::vector<char> & visited,
     std::list<int_id> & path) {
@@ -155,41 +155,59 @@ bool Graph::internal_augment(int_id now, std::vector<char> & visited,
     if ((bool)visited[next_edge.id]) {
       continue;
     }
-    // Can't add any more flow to this edge.
-    if (next_edge.flow >= next_edge.cap) {
-      continue;
-    }
-    // If we're going "backwards" we need to use up (subtract) flow, so check we
-    // have some. Note that since we are checking backwards, the flow will also
-    // be negative
-    if (next_edge.reverse) {
-      if (next_edge.flow >= 0) {
+    if (_on_right[now]) {
+      // We're on right, going left, need capacity available.
+      // Note that next_edge will be in reverse, so it will have negative flow
+      if ((-next_edge.flow) == next_edge.cap) {
         continue;
       }
-    }
-    if (_cap_remaining[next_edge.id] > 0) {
-      // Found an augmenting flow. Modify flows used.
-      _cap_remaining[next_edge.id] -= 1;
-      path.push_back(next_edge.id);
+      // next_edge.id will be on left. If it has capacity, remaining, done!
+      if (_cap_remaining[next_edge.id] > 0) {
+        // Found an augmenting flow. Modify flows used.
+        _cap_remaining[next_edge.id] -= 1;
+        path.push_back(next_edge.id);
 
 #ifdef DEBUG_GRAPH
-      std::cout << "Found augmenting path:";
-      for(auto & p: path) {
-        std::cout << " " << _indices[p];
-      }
-      std::cout << std::endl;
+        std::cout << "Found augmenting path:";
+        for(auto & p: path) {
+          std::cout << " " << _indices[p];
+        }
+        std::cout << std::endl;
 #endif /* DEBUG_GRAPH */
-      int start = path.front();
-      path.pop_front();
-      while(!path.empty()) {
+        int start = path.front();
+        path.pop_front();
         int next = path.front();
         path.pop_front();
-        _adjmat[start][next]->flow += 1;
-        _adjmat[next][start]->flow -= 1;
+        // Start is on the right, and next is on the left
+        // Thus we need to increase the flow from next to start
+        _adjmat[start][next]->flow -= 1;
+        _adjmat[next][start]->flow += 1;
         start = next;
+        while(!path.empty()) {
+          next = path.front();
+          path.pop_front();
+          // Now start is on the left, and next is on the right
+          // So increase from start to next
+          // And reduce from next to start
+          _adjmat[start][next]->flow += 1;
+          _adjmat[next][start]->flow -= 1;
+          start = next;
+          next = path.front();
+          path.pop_front();
+          // At this point, start is on the right, and next is on the left
+          // Thus we need to increase the flow from next to start
+          _adjmat[start][next]->flow -= 1;
+          _adjmat[next][start]->flow += 1;
+          start = next;
+        }
+        max_flow += 1;
+        return true;
       }
-      max_flow += 1;
-      return true;
+    } else {
+      // We're on the left, so we want this edge to be used
+      if (next_edge.flow <= 0) {
+        continue;
+      }
     }
     path.push_back(next_edge.id);
     visited[next_edge.id] = (char)true;
