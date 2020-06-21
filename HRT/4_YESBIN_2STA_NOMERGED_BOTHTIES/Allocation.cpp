@@ -718,6 +718,7 @@ void Allocation::reduction(int mode){
 				num = reductionExactDoctor(true);
 				if (num == -1) {
 					keep_going = true;
+					this_time = 0;
 				} else {
 					this_time += num;
 				}
@@ -733,6 +734,7 @@ void Allocation::reduction(int mode){
 				num = reductionExactHospital(true);
 				if (num == -1) {
 					keep_going = true;
+					this_time = 0;
 				} else {
 					this_time += num;
 				}
