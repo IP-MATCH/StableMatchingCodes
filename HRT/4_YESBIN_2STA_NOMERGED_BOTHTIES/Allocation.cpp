@@ -234,8 +234,9 @@ int Allocation::reductionMineDoctors(int mode) {
 				int remHere = 0;
 #endif /* DEBUG */
 				for (int k = worst_rank + 1; k < doctors[i].nbPref; k++) {
+					nbTotRem += doctors[i].preferences[k].size();
+					doctors[i].nbTotPref -= doctors[i].preferences[k].size();
 					for (size_t id = 0; id < doctors[i].preferences[k].size(); ++id) {
-						nbTotRem += 1;
 #ifdef DEBUG
 						remHere += 1;
 #endif /* DEBUG */
@@ -452,11 +453,11 @@ int Allocation::reductionExactDoctor(bool supp) {
 					int remHere = 0;
 #endif /* DEBUG */
 					for (int k = rank + 1; k < doctors[i].nbPref; k++) {
-						for (size_t id = 0; id < doctors[i].preferences[k].size(); ++id) {
-							nbTotRem += 1;
+						nbTotRem += doctors[i].preferences[k].size();
 #ifdef DEBUG
-							remHere += 1;
+						remHere += doctors[i].preferences[k].size();
 #endif /* DEBUG */
+						for (size_t id = 0; id < doctors[i].preferences[k].size(); ++id) {
 							int idxHos = doctors[i].preferences[k][id] - 1;
 							// remove from idxHos any reference to i.
 							for(size_t rank = 0 ; rank < hospitals[idxHos].preferences.size(); ++rank) {
