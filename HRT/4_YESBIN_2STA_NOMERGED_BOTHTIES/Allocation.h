@@ -105,8 +105,8 @@
 		int reductionResApp();
 		void polish();
 		void reduction(int mode);
-		int reductionMineDoctors(int mode);
-		int reductionMineHospitals(int mode);
+		int reductionMineDoctors(int mode, bool alt_store=false);
+		int reductionMineHospitals(int mode, bool alt_store=false);
 		int reductionExactHospital(bool supp);
 		int reductionExactDoctor(bool supp);
 		void printSol();

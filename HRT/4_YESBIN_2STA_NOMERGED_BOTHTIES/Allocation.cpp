@@ -199,13 +199,15 @@ void Allocation::printProb(){
 }
 
 
-int Allocation::reductionMineDoctors(int mode) {
+int Allocation::reductionMineDoctors(int mode, bool alt_store) {
 	int nbTotRem = 0;
 
 	for (int i = 0; i < nbDoctors; i++) {
 		set<int> candidates;
 		set<int> positions;
 		int worst_rank = 0;
+		int cand_size = 0;
+		vector<bool> cand_in(nbDoctors, false);
 		unsigned int count = 0;
 		AgentIterator<Doctor,Hospital> iter(doctors[i], candidates, positions, doctors, hospitals, mode);
 		for(std::pair<int, int> p: iter) {
@@ -219,7 +221,12 @@ int Allocation::reductionMineDoctors(int mode) {
 			for (auto & group: hospitals[idxHos].preferences) {
 				bool break_yet = false;
 				for(int pref: group) {
-					candidates.insert(pref);
+					if ((alt_store && cand_in[pref] == false) ||
+							(!alt_store && candidates.count(pref) == 0)) {
+						candidates.insert(pref);
+						cand_in[pref] = true;
+						cand_size++;
+					}
 					if (pref == doctors[i].id) {
 						break_yet = true;
 					}
@@ -228,7 +235,7 @@ int Allocation::reductionMineDoctors(int mode) {
 					break;
 				}
 			}
-			if (count >= candidates.size()) {
+			if (count >= cand_size) {
 #ifdef DEBUG
 				std::cout << "doctor worst rank of " << doctors[i].id << " is " << worst_rank << std::endl;
 				int remHere = 0;
@@ -265,13 +272,14 @@ int Allocation::reductionMineDoctors(int mode) {
 	return nbTotRem;
 }
 
-int Allocation::reductionMineHospitals(int mode) {
+int Allocation::reductionMineHospitals(int mode, bool alt_store) {
 	int nbTotRem = 0;
 
 	for (int i = 0; i < nbHospitals; i++) {
 		set<int> candidates;
 		set<int> positions;
 		unsigned int candidate_cap = 0;
+		vector<bool> cand_in(nbHospitals, false);
 		int worst_rank = 0;
 		unsigned int count = 0;
 #ifdef DEBUG
@@ -289,8 +297,10 @@ int Allocation::reductionMineHospitals(int mode) {
 			count += 1;
 			for(const auto & group: doctors[idxDoc].preferences) {
 				for (int pref: group) {
-					if (candidates.count(pref) == 0) {
+					if ((alt_store && cand_in[pref] == false) ||
+							(!alt_store && candidates.count(pref) == 0)) {
 						candidates.insert(pref);
+						cand_in[pref] = true;
 						candidate_cap += hospitals[pref-1].cap;
 					}
 					if (pref == hospitals[i].id) {
@@ -740,6 +750,10 @@ void Allocation::reduction(int mode){
 					this_time += num;
 				}
 				total_removed += this_time;
+			} else if (mode == 13) {
+				// Use descending with faster algo
+				this_time = reductionMineDoctors(0, true);
+				this_time += reductionMineHospitals(0, true);
 			} else {
 				this_time = reductionMineHospitals(mode);
 				this_time += reductionMineDoctors(mode);
