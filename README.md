@@ -1,6 +1,8 @@
 # StableMatchingCodes
 
-These are the various codes used for [Mathematical models for stable matching problems with incomplete lists and ties](https://arxiv.org/abs/1810.02711), which is currently under review. Each sub-folder in this repository is a coding of a different model, and the paper describes the differences between all the models.
+These are the various codes used for [Mathematical models for stable matching problems with incomplete lists and ties](https://doi.org/10.1016/j.ejor.2019.03.017). Each sub-folder in this repository is a coding of a different model, and the paper describes the differences between all the models.
+Additionally, improved preprocessing has been introduced in 
+[Improving solution times for stable matching problems through preprocessing](https://www.sciencedirect.com/science/article/pii/S0305054820302458).
 
 ## Compiling
 
@@ -9,12 +11,23 @@ These all require an operational [Gurobi](https://gurobi.com) runtime installed,
 
 ## Execution
 
-After compilation, each different model is run in a similar manner:
+Note that some codes have additional preprocessing added, which leads to two
+different ways of calling programs. If additional preprocessing has not been
+added, use the following:
 ```
 $ ./EXECUTABLE /path/to Problem.txt Logfile.txt
 ```
 
 where the `/path/to` is the path to where the problems are stored, `Problem.txt` is a problem file (described below) and Logfile.txt is a place to write the logfile. The solution is written to standard output, and we recommend redirecting this to a file as well.
+
+If additional preprocessing has been added, you will need to run
+
+```
+$ ./EXECUTABLE /path/to Problem.txt Logfile.txt PreprocessMode
+```
+
+where PreprocessMode is one of the options given in the README.md file in the
+folder for each problem type.
 
 
 ## Problem files

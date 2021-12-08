@@ -24,3 +24,30 @@ incumbent solution.
 The folder A_YESBIN_1STA_YESMERGED_GS is M4 with Gale-Shapley used to find an
 incumbent solution.
 
+
+# Improved preprocessing codes
+
+Two of these folders (corresponding to M4 and M6) have been used for improved
+preprocessing. The available preprocessing modes for SMTI are as follows (for usage instructions, see [the earlier README.md](../README.md):
+
+| Mode (as program option) | Mode (from paper) | Description                                       |
+|--------------------------|-------------------|---------------------------------------------------|
+| 0                        | P1                | Descending heuristic                              |
+| 1                        | P2                | Skip 5                                            |
+| 2                        |                   | Find best                                         |
+| 3                        | P3                | Skip 15                                           |
+| 4                        | P4                | Skip 50                                           |
+| 5                        |                   | Best in group                                     |
+| 6                        | P5                | Graph-based (family first)                        |
+| 7                        |                   | Mode 1, then Mode 6                               |
+| 8                        |                   | Graph-based (children first)                      |
+| 9                        | P6                | Extended graph-based (family first)               |
+| 10                       |                   | Extended graph-based (children first)             |
+| 11                       |                   | Mode 1, then Mode 8                               |
+| 12                       | P0                | No preprocessing                                  |
+| 13                       | P1'               | Descending heuristic with improved data structure |
+| 14                       |                   | Mode 6 with early exit                            |
+| 15                       |                   | Mode 8 with early exit                            |
+| 16                       |                   | Mode 1, then Mode 9                               |
+| 17                       |                   | Mode 1, then Mode 10                              |
+
